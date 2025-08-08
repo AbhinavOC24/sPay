@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/utils/checkbalance.ts","./src/utils/prisma-client.ts","./src/zod/zodcheck.ts"],"version":"5.9.2"}
