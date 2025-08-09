@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentSchema } from "./zod/zodCheck";
 import { generateSecretKey } from "@stacks/wallet-sdk";
 import { prisma } from "./utils/prisma-client";
+import * as crypto from "crypto";
+
 import {
   makeRandomPrivKey,
   getAddressFromPrivateKey,
@@ -13,7 +15,7 @@ import {
 
 import { TransactionVersion } from "@stacks/network";
 import { uuid } from "zod";
-import { pollPendingCharges } from "./utils/checkBalance";
+import { processPendingCharges } from "./utils/chargeProcessor";
 
 const app = express();
 app.use(express.json());
@@ -28,7 +30,7 @@ const arg = {
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`listening on port ${process.env.BACKEND_PORT}`);
   setInterval(() => {
-    pollPendingCharges().catch((e: any) => console.error("poller error", e));
+    processPendingCharges().catch((e: any) => console.error("poller error", e));
   }, 10_000);
 });
 
@@ -48,10 +50,14 @@ app.post("/api/charge", async (req: Request, res: Response) => {
     }
 
     const privKey = account.stxPrivateKey;
+
     const address = getStxAddress(account, "testnet");
     const chargeId = uuidv4();
-
     const microAmount = BigInt(Math.floor(parsed.data.amount * 1_000_000));
+    const { webhookUrl } = parsed.data;
+    const webhookSecret = webhookUrl
+      ? crypto.randomBytes(32).toString("hex")
+      : null;
 
     const charge = await prisma.charge.create({
       data: {
@@ -59,6 +65,8 @@ app.post("/api/charge", async (req: Request, res: Response) => {
         address,
         privKey,
         amount: microAmount,
+        webhookUrl,
+        webhookSecret,
       },
     });
 
