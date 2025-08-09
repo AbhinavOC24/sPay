@@ -8,8 +8,8 @@ interface ChargeConfirmedPayload {
 
 // Merchant's webhook configuration stored in your system
 interface MerchantWebhookConfig {
-  url: string;
-  secret: string;
+  url: string | null;
+  secret: string | null;
 }
 
 // Parameters needed to send a webhook

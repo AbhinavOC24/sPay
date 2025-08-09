@@ -10,29 +10,41 @@ const merchant_addr = "something";
 export async function processPendingCharges() {
   const pendingCharges = await prisma.charge.findMany({
     where: { status: "PENDING" },
+    include: { merchant: true },
   });
 
   for (const charge of pendingCharges) {
     const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
     if (paid) {
+      // 1) Mark confirmed
+
       const updated = await prisma.charge.update({
         where: { id: charge.id },
         data: { status: "CONFIRMED", paidAt: new Date() },
+        include: { merchant: true }, // keep merchant on the updated record too
       });
       console.log(`Charge ${charge.chargeId} confirmed`);
-      if (!updated.privKey) return;
-      const result = await transferSbtc(
-        updated.privKey,
-        updated.address,
-        merchant_addr,
-        updated.amount
-      );
-      console.log(result);
-      if (
-        updated.webhookUrl &&
-        updated.webhookSecret &&
-        updated.webhookLastStatus !== "SUCCESS"
-      ) {
+      if (!updated.privKey) {
+        console.error(
+          `Charge ${updated.chargeId}: missing temp wallet privKey; skipping payout`
+        );
+      } else if (!updated.merchant?.payoutStxAddress) {
+        console.error(
+          `Charge ${updated.chargeId}: merchant payoutStxAddress missing; skipping payout`
+        );
+      } else {
+        const txResult = await transferSbtc(
+          updated.privKey,
+          updated.address,
+          updated.merchant.payoutStxAddress,
+          updated.amount
+        );
+        console.log("SBTC payout broadcast result:", txResult);
+      }
+      const hasWebhook =
+        !!updated.merchant?.webhookUrl && !!updated.merchant?.webhookSecret;
+
+      if (hasWebhook && updated.webhookLastStatus !== "SUCCESS") {
         await deliverChargeConfirmedWebhook({
           payload: {
             chargeId: updated.chargeId,
@@ -41,8 +53,8 @@ export async function processPendingCharges() {
             paidAt: updated.paidAt?.toISOString(),
           },
           config: {
-            url: updated.webhookUrl,
-            secret: updated.webhookSecret,
+            url: updated.merchant.webhookUrl,
+            secret: updated.merchant.webhookSecret,
           },
         });
       }

@@ -16,6 +16,7 @@ import {
 import { TransactionVersion } from "@stacks/network";
 import { uuid } from "zod";
 import { processPendingCharges } from "./utils/chargeProcessor";
+import { requireMerchant } from "./middleware/auth";
 
 const app = express();
 app.use(express.json());
@@ -34,45 +35,53 @@ app.listen(process.env.BACKEND_PORT, () => {
   }, 10_000);
 });
 
-app.post("/api/charge", async (req: Request, res: Response) => {
-  try {
-    const parsed = paymentSchema.safeParse(req.body);
+app.post(
+  "/api/charge",
+  requireMerchant,
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = paymentSchema.safeParse(req.body);
 
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.message });
+        return;
+      }
+
+      const merchant = req.merchant;
+
+      if (!merchant) return;
+      const newWallet = await generateWallet(arg);
+      const account = newWallet.accounts[0];
+
+      if (!account) {
+        res.status(500).json({ error: "wallet error" });
+        return;
+      }
+      const privKey = account.stxPrivateKey;
+      const address = getStxAddress(account, "testnet");
+      const chargeId = uuidv4();
+      const microAmount = BigInt(Math.floor(parsed.data.amount * 1_000_000));
+
+      // const webhookSecret = webhookUrl
+      //   ? crypto.randomBytes(32).toString("hex")
+      //   : null;
+
+      const charge = await prisma.charge.create({
+        data: {
+          chargeId,
+          address,
+          privKey,
+          amount: microAmount,
+          merchantid: merchant.id,
+        },
+      });
+
+      console.log(charge);
+      res.status(200).json({ address, charge_id: chargeId });
+    } catch (error) {
+      console.log(error);
     }
-    const newWallet = await generateWallet(arg);
-    const account = newWallet.accounts[0];
-    if (!account) {
-      res.status(500).json({ error: "wallet error" });
-      return;
-    }
-
-    const privKey = account.stxPrivateKey;
-
-    const address = getStxAddress(account, "testnet");
-    const chargeId = uuidv4();
-    const microAmount = BigInt(Math.floor(parsed.data.amount * 1_000_000));
-    const { webhookUrl } = parsed.data;
-    const webhookSecret = webhookUrl
-      ? crypto.randomBytes(32).toString("hex")
-      : null;
-
-    const charge = await prisma.charge.create({
-      data: {
-        chargeId,
-        address,
-        privKey,
-        amount: microAmount,
-        webhookUrl,
-        webhookSecret,
-      },
-    });
-
-    console.log(charge);
-    res.status(200).json({ address, charge_id: chargeId });
-  } catch (error) {
-    console.log(error);
   }
-});
+);
+
+app.post("/api/merchants/signup", async (req: Request, res: Response) => {});

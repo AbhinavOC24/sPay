@@ -20,14 +20,31 @@ model Charge {
   amount    BigInt
   status    String   @default("PENDING") 
   privKey   String?  
-
-  createdAt DateTime @default(now())
   paidAt    DateTime?
+  createdAt DateTime @default(now())
 
 
-    // webhook fields
-  webhookUrl     String?  // merchant callback url
-  webhookSecret  String?  // HMAC secret to sign webhook payloads (store server-side)
-  webhookAttempts Int     @default(0)
+  // webhook delivery state (per event)
+  webhookAttempts   Int      @default(0)
   webhookLastStatus String?
+
+  merchantid String
+  merchant Merchant @relation(fields: [merchantid],references: [id])
+}
+
+model Merchant {
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  password         String 
+  apiKey           String   @unique
+  apiSecret        String   // show once on creation (store securely)
+  webhookUrl       String?
+  webhookSecret    String?  // HMAC secret (show once)
+  payoutStxAddress String?  // merchant's receiving STX address
+
+  charges          Charge[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
