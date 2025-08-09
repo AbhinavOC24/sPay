@@ -2,9 +2,10 @@ import { prisma } from "./prisma-client";
 import axios from "axios";
 
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
+import { transferSbtc } from "./sbtcTransfer";
 
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
-
+const merchant_addr = "something";
 // Poll for charges that are pending and confirm them if payment is detected
 export async function processPendingCharges() {
   const pendingCharges = await prisma.charge.findMany({
@@ -19,7 +20,14 @@ export async function processPendingCharges() {
         data: { status: "CONFIRMED", paidAt: new Date() },
       });
       console.log(`Charge ${charge.chargeId} confirmed`);
-
+      if (!updated.privKey) return;
+      const result = await transferSbtc(
+        updated.privKey,
+        updated.address,
+        merchant_addr,
+        updated.amount
+      );
+      console.log(result);
       if (
         updated.webhookUrl &&
         updated.webhookSecret &&
