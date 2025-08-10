@@ -9,6 +9,5 @@ exports.paymentSchema = zod_1.default.object({
     amount: zod_1.default.number().gt(0, { message: "number should be greater than 0" }),
     order_id: zod_1.default.string(),
     description: zod_1.default.string(),
-    webhookUrl: zod_1.default.string(),
 });
 //# sourceMappingURL=zodCheck.js.map

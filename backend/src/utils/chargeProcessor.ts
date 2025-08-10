@@ -2,7 +2,8 @@ import { prisma } from "./prisma-client";
 import axios from "axios";
 
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
-import { transferSbtc } from "./sbtcTransfer";
+import { transferSbtc } from "./transferSbtc";
+import { waitForTxSuccess } from "./txChecker";
 
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
 const merchant_addr = "something";
@@ -33,13 +34,24 @@ export async function processPendingCharges() {
           `Charge ${updated.chargeId}: merchant payoutStxAddress missing; skipping payout`
         );
       } else {
-        const txResult = await transferSbtc(
-          updated.privKey,
-          updated.address,
-          updated.merchant.payoutStxAddress,
-          updated.amount
-        );
-        console.log("SBTC payout broadcast result:", txResult);
+        const tempAddrPrivKey = updated.privKey;
+        const tempAddr = updated.address;
+        const merchantPayoutAddr = updated.merchant.payoutStxAddress;
+        const amt = updated.amount;
+        try {
+          const { txid } = await transferSbtc(
+            tempAddrPrivKey, // signer key = temp wallet key
+            tempAddr, // sender = the SAME temp wallet address
+            merchantPayoutAddr, // recipient = merchant payout
+            amt
+          );
+          console.log("SBTC payout broadcast:", txid);
+
+          const final = await waitForTxSuccess(txid);
+          console.log("SBTC payout CONFIRMED:", txid);
+        } catch (e: any) {
+          console.error("SBTC payout FAILED:", e?.message || e);
+        }
       }
       const hasWebhook =
         !!updated.merchant?.webhookUrl && !!updated.merchant?.webhookSecret;

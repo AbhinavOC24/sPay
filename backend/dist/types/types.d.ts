@@ -5,8 +5,8 @@ interface ChargeConfirmedPayload {
     paidAt?: string | undefined;
 }
 interface MerchantWebhookConfig {
-    url: string;
-    secret: string;
+    url: string | null;
+    secret: string | null;
 }
 export interface WebhookDeliveryParams {
     payload: ChargeConfirmedPayload;

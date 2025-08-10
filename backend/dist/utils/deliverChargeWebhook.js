@@ -57,6 +57,10 @@ function deliverChargeConfirmedWebhook(_a) {
             data: payload,
         };
         const bodyJson = JSON.stringify(eventEnvelope);
+        if (!config.secret || !config.url) {
+            console.log("Cant find webhook secret and url from deliverChargeWebhook");
+            return;
+        }
         // Generate HMAC signature
         const signature = crypto
             .createHmac("sha256", config.secret)
