@@ -6,20 +6,19 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentSchema } from "./zod/zodCheck";
 import { generateSecretKey } from "@stacks/wallet-sdk";
 import { prisma } from "./utils/prisma-client";
-import * as crypto from "crypto";
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { genApiKey, genApiSecret } from "./utils/keys"; // you already have this
-import {
-  makeRandomPrivKey,
-  getAddressFromPrivateKey,
-} from "@stacks/transactions";
 
-import { TransactionVersion } from "@stacks/network";
-import { uuid } from "zod";
-import { processPendingCharges } from "./utils/chargeProcessor";
+import {
+  processPendingCharges,
+  recoverStuckCharges,
+  retryFailedWebhooks,
+  startChargeProcessor,
+} from "./utils/chargeProcessor";
 import { requireMerchant } from "./middleware/auth";
-import { transferSbtc } from "./utils/transferSbtc";
+
 import { transferStx } from "./utils/transferStx";
 import { deriveHotWallet } from "./utils/deriveHotWallet";
 
@@ -41,9 +40,12 @@ const mnemonicArray = mnemonicString.trim().split(/\s+/);
 
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`listening on port ${process.env.BACKEND_PORT}`);
-  setInterval(() => {
-    processPendingCharges().catch((e: any) => console.error("poller error", e));
-  }, 10_000);
+
+  startChargeProcessor();
+  setInterval(() => retryFailedWebhooks(), 60_000); // every 1 min
+
+  // recover payouts that look stuck less often
+  setInterval(() => recoverStuckCharges(), 5 * 60_000); // every 5 min
 });
 
 app.post(

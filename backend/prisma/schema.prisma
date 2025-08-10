@@ -20,16 +20,27 @@ model Charge {
   amount    BigInt
   status    String   @default("PENDING") 
   privKey   String?  
+  merchantid String
+  merchant Merchant @relation(fields: [merchantid],references: [id])
+
+ // Timing fields
   paidAt    DateTime?
   createdAt DateTime @default(now())
-
-
+  payoutConfirmedAt DateTime?
+  completedAt       DateTime?
+  lastProcessedAt   DateTime?
+  
   // webhook delivery state (per event)
   webhookAttempts   Int      @default(0)
   webhookLastStatus String?
 
-  merchantid String
-  merchant Merchant @relation(fields: [merchantid],references: [id])
+   // Transaction tracking
+  payoutTxId        String?   // Store the payout transaction ID
+  failureReason     String?   // Store failure reason for debugging
+  
+
+
+
 }
 
 model Merchant {

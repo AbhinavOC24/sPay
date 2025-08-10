@@ -1,6 +1,5 @@
 import { prisma } from "./prisma-client";
 import axios from "axios";
-
 import * as crypto from "crypto";
 import { WebhookDeliveryParams } from "../types/types";
 
@@ -14,10 +13,14 @@ export async function deliverChargeConfirmedWebhook({
     data: payload,
   };
   const bodyJson = JSON.stringify(eventEnvelope);
+
   if (!config.secret || !config.url) {
-    console.log("Cant find webhook secret and url from deliverChargeWebhook");
+    console.log(
+      "📧 Can't find webhook secret and url from deliverChargeWebhook"
+    );
     return;
   }
+
   // Generate HMAC signature
   const signature = crypto
     .createHmac("sha256", config.secret)
@@ -29,6 +32,12 @@ export async function deliverChargeConfirmedWebhook({
 
   while (attempts < maxAttempts) {
     try {
+      console.log(
+        `📧 Sending webhook attempt ${attempts + 1} for charge ${
+          payload.chargeId
+        }`
+      );
+
       await axios.post(config.url, bodyJson, {
         headers: {
           "Content-Type": "application/json",
@@ -38,33 +47,48 @@ export async function deliverChargeConfirmedWebhook({
         timeout: 5000,
       });
 
+      // Update webhook success status
       await prisma.charge.update({
         where: { chargeId: payload.chargeId },
         data: {
           webhookAttempts: { increment: 1 },
           webhookLastStatus: "SUCCESS",
+          lastProcessedAt: new Date(),
         },
       });
 
+      console.log(
+        `📧 ✅ Webhook delivered successfully for charge ${payload.chargeId}`
+      );
       return;
-    } catch (error) {
+    } catch (error: any) {
+      attempts++;
+
       console.error(
-        `Webhook attempt ${attempts + 1} failed for ${payload.chargeId}:`,
-        error
+        `📧 ❌ Webhook attempt ${attempts} failed for ${payload.chargeId}:`,
+        error?.response?.status || error?.code || error?.message
       );
 
-      attempts++;
+      // Update webhook failure status
       await prisma.charge.update({
         where: { chargeId: payload.chargeId },
         data: {
           webhookAttempts: { increment: 1 },
           webhookLastStatus: "FAILED",
+          lastProcessedAt: new Date(),
         },
       });
 
+      // If not the last attempt, wait before retrying
       if (attempts < maxAttempts) {
-        await new Promise((res) => setTimeout(res, 2000)); // backoff
+        const backoffDelay = attempts * 2000; // 2s, 4s, 6s
+        console.log(`📧 ⏳ Retrying webhook in ${backoffDelay}ms...`);
+        await new Promise((res) => setTimeout(res, backoffDelay));
       }
     }
   }
+
+  console.error(
+    `📧 💀 All webhook attempts failed for charge ${payload.chargeId}`
+  );
 }

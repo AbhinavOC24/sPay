@@ -3,6 +3,7 @@ interface ChargeConfirmedPayload {
     address: string;
     amount: string;
     paidAt?: string | undefined;
+    payoutTxId: string | null;
 }
 interface MerchantWebhookConfig {
     url: string | null;

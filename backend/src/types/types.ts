@@ -4,6 +4,7 @@ interface ChargeConfirmedPayload {
   address: string; // STX address that received payment
   amount: string; // Amount in micro-units (string for BigInt safety)
   paidAt?: string | undefined; // ISO timestamp when payment was confirmed
+  payoutTxId: string | null; // ✅ Added this field
 }
 
 // Merchant's webhook configuration stored in your system

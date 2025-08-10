@@ -41,7 +41,7 @@ const mnemonicArray = mnemonicString.trim().split(/\s+/);
 app.listen(process.env.BACKEND_PORT, () => {
     console.log(`listening on port ${process.env.BACKEND_PORT}`);
     setInterval(() => {
-        (0, chargeProcessor_1.processPendingCharges)().catch((e) => console.error("poller error", e));
+        (0, chargeProcessor_1.startChargeProcessor)();
     }, 10000);
 });
 app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, void 0, void 0, function* () {

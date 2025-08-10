@@ -52,13 +52,14 @@ const crypto = __importStar(require("crypto"));
 // Send a webhook to the merchant with retries and signature verification
 function deliverChargeConfirmedWebhook(_a) {
     return __awaiter(this, arguments, void 0, function* ({ payload, config, }) {
+        var _b;
         const eventEnvelope = {
             type: "charge.confirmed",
             data: payload,
         };
         const bodyJson = JSON.stringify(eventEnvelope);
         if (!config.secret || !config.url) {
-            console.log("Cant find webhook secret and url from deliverChargeWebhook");
+            console.log("📧 Can't find webhook secret and url from deliverChargeWebhook");
             return;
         }
         // Generate HMAC signature
@@ -70,6 +71,7 @@ function deliverChargeConfirmedWebhook(_a) {
         const maxAttempts = 3;
         while (attempts < maxAttempts) {
             try {
+                console.log(`📧 Sending webhook attempt ${attempts + 1} for charge ${payload.chargeId}`);
                 yield axios_1.default.post(config.url, bodyJson, {
                     headers: {
                         "Content-Type": "application/json",
@@ -78,30 +80,39 @@ function deliverChargeConfirmedWebhook(_a) {
                     },
                     timeout: 5000,
                 });
+                // Update webhook success status
                 yield prisma_client_1.prisma.charge.update({
                     where: { chargeId: payload.chargeId },
                     data: {
                         webhookAttempts: { increment: 1 },
                         webhookLastStatus: "SUCCESS",
+                        lastProcessedAt: new Date(),
                     },
                 });
+                console.log(`📧 ✅ Webhook delivered successfully for charge ${payload.chargeId}`);
                 return;
             }
             catch (error) {
-                console.error(`Webhook attempt ${attempts + 1} failed for ${payload.chargeId}:`, error);
                 attempts++;
+                console.error(`📧 ❌ Webhook attempt ${attempts} failed for ${payload.chargeId}:`, ((_b = error === null || error === void 0 ? void 0 : error.response) === null || _b === void 0 ? void 0 : _b.status) || (error === null || error === void 0 ? void 0 : error.code) || (error === null || error === void 0 ? void 0 : error.message));
+                // Update webhook failure status
                 yield prisma_client_1.prisma.charge.update({
                     where: { chargeId: payload.chargeId },
                     data: {
                         webhookAttempts: { increment: 1 },
                         webhookLastStatus: "FAILED",
+                        lastProcessedAt: new Date(),
                     },
                 });
+                // If not the last attempt, wait before retrying
                 if (attempts < maxAttempts) {
-                    yield new Promise((res) => setTimeout(res, 2000)); // backoff
+                    const backoffDelay = attempts * 2000; // 2s, 4s, 6s
+                    console.log(`📧 ⏳ Retrying webhook in ${backoffDelay}ms...`);
+                    yield new Promise((res) => setTimeout(res, backoffDelay));
                 }
             }
         }
+        console.error(`📧 💀 All webhook attempts failed for charge ${payload.chargeId}`);
     });
 }
 //# sourceMappingURL=deliverChargeWebhook.js.map
