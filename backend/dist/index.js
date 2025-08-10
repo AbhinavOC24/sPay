@@ -40,12 +40,33 @@ const mnemonicString = "benefit rough liar guitar scout task own edit stumble ch
 const mnemonicArray = mnemonicString.trim().split(/\s+/);
 app.listen(process.env.BACKEND_PORT, () => {
     console.log(`listening on port ${process.env.BACKEND_PORT}`);
-    setInterval(() => {
-        (0, chargeProcessor_1.startChargeProcessor)();
-    }, 10000);
+    (0, chargeProcessor_1.startChargeProcessor)();
+    setInterval(() => (0, chargeProcessor_1.retryFailedWebhooks)(), 60000); // every 1 min
+    // recover payouts that look stuck less often
+    setInterval(() => (0, chargeProcessor_1.recoverStuckCharges)(), 5 * 60000); // every 5 min
 });
 app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const key = req.get("Idempotency-Key");
+        if (!key) {
+            res.status(400).json({ error: "missing_idempotency_key" });
+            return;
+        }
+        if (!req.merchant) {
+            res.status(401).json({ error: "unauthorized" });
+            return;
+        }
+        // Fast path: replay same logical request
+        const existing = yield prisma_client_1.prisma.charge.findUnique({
+            where: {
+                merchantid_idempotencyKey: {
+                    merchantid: req.merchant.id,
+                    idempotencyKey: key,
+                },
+            },
+        });
+        if (existing)
+            return res.json({ Error: "Duplicate charge" });
         const parsed = zodCheck_1.paymentSchema.safeParse(req.body);
         if (!parsed.success) {
             res.status(400).json({ error: parsed.error.message });
@@ -77,6 +98,7 @@ app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, 
                 privKey,
                 amount: microAmount,
                 merchantid: merchant.id,
+                idempotencyKey: key,
             },
         });
         console.log(charge);
@@ -126,7 +148,6 @@ app.post("/api/merchants/signup", (req, res) => __awaiter(void 0, void 0, void 0
                 createdAt: true,
             },
         });
-        // optional: set a short session cookie for a future dashboard
         const token = jsonwebtoken_1.default.sign({ sub: merchant.id }, process.env.JWT_SECRET, {
             expiresIn: "2h",
         });
@@ -144,4 +165,5 @@ app.post("/api/merchants/signup", (req, res) => __awaiter(void 0, void 0, void 0
         return res.status(500).json({ error: "signup_failed" });
     }
 }));
+app.get("/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 //# sourceMappingURL=index.js.map

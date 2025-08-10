@@ -21,7 +21,7 @@ const prisma_client_1 = require("./prisma-client");
 const axios_1 = __importDefault(require("axios"));
 const deliverChargeWebhook_1 = require("./deliverChargeWebhook");
 const transferSbtc_1 = require("./transferSbtc");
-const txChecker_1 = require("./txChecker");
+const checkTxStatus_1 = require("./checkTxStatus");
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
 //PENDING → CONFIRMED → PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
 // Retry configuration
@@ -163,7 +163,7 @@ function processPayoutConfirmed() {
                 if (!charge.payoutTxId)
                     continue;
                 // ✅ Non-blocking transaction status check
-                const txStatus = yield (0, txChecker_1.checkTxStatus)(charge.payoutTxId);
+                const txStatus = yield (0, checkTxStatus_1.checkTxStatus)(charge.payoutTxId);
                 if (txStatus.isSuccess) {
                     // First, update to PAYOUT_CONFIRMED in a separate transaction
                     const updatedCharge = yield prisma_client_1.prisma.charge.update({
@@ -181,7 +181,7 @@ function processPayoutConfirmed() {
                         !!((_b = updatedCharge.merchant) === null || _b === void 0 ? void 0 : _b.webhookSecret);
                     if (hasWebhook) {
                         try {
-                            yield (0, deliverChargeWebhook_1.deliverChargeConfirmedWebhook)({
+                            const ok = yield (0, deliverChargeWebhook_1.deliverChargeConfirmedWebhook)({
                                 payload: {
                                     chargeId: updatedCharge.chargeId,
                                     address: updatedCharge.address,
@@ -195,14 +195,19 @@ function processPayoutConfirmed() {
                                 },
                             });
                             // Only after successful webhook, mark as completed
-                            yield prisma_client_1.prisma.charge.update({
-                                where: { id: charge.id },
-                                data: {
-                                    status: "COMPLETED",
-                                    completedAt: new Date(),
-                                },
-                            });
-                            console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+                            if (ok) {
+                                yield prisma_client_1.prisma.charge.update({
+                                    where: { id: charge.id },
+                                    data: {
+                                        status: "COMPLETED",
+                                        completedAt: new Date(),
+                                    },
+                                });
+                                console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+                            }
+                            else {
+                                console.error(`📧 Webhook delivery failed for charge ${charge.chargeId}, will retry later`);
+                            }
                         }
                         catch (webhookError) {
                             console.error(`📧 Webhook delivery failed for charge ${charge.chargeId}:`, webhookError);
@@ -248,7 +253,7 @@ function processPayoutConfirmed() {
         }
     });
 }
-// Retry failed webhooks for payout confirmed charges
+// Retry failed webhooks for payout confirmed charges but not completed ie merchant webhook failed
 function retryFailedWebhooks() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;
@@ -265,7 +270,7 @@ function retryFailedWebhooks() {
             if (!((_a = charge.merchant) === null || _a === void 0 ? void 0 : _a.webhookUrl) || !((_b = charge.merchant) === null || _b === void 0 ? void 0 : _b.webhookSecret))
                 continue;
             try {
-                yield (0, deliverChargeWebhook_1.deliverChargeConfirmedWebhook)({
+                const ok = yield (0, deliverChargeWebhook_1.deliverChargeConfirmedWebhook)({
                     payload: {
                         chargeId: charge.chargeId,
                         address: charge.address,
@@ -286,7 +291,16 @@ function retryFailedWebhooks() {
                         completedAt: new Date(),
                     },
                 });
-                console.log(`📧 Webhook retry successful for charge ${charge.chargeId}`);
+                if (ok) {
+                    yield prisma_client_1.prisma.charge.update({
+                        where: { id: charge.id },
+                        data: { status: "COMPLETED", completedAt: new Date() },
+                    });
+                    console.log(`📧 Webhook retry successful for charge ${charge.chargeId}`);
+                }
+                else {
+                    console.error(`📧 Webhook retry still failing for charge ${charge.chargeId}`);
+                }
             }
             catch (error) {
                 console.error(`📧 Webhook retry failed for charge ${charge.chargeId}:`, error);
@@ -362,7 +376,7 @@ function recoverStuckCharges() {
             console.log(`🔧 Checking stuck charge ${charge.chargeId}`);
             if (charge.payoutTxId) {
                 // Check the transaction status one more time
-                const txStatus = yield (0, txChecker_1.checkTxStatus)(charge.payoutTxId);
+                const txStatus = yield (0, checkTxStatus_1.checkTxStatus)(charge.payoutTxId);
                 if (txStatus.isFailed) {
                     yield markChargeFailed(charge.chargeId, `Recovery: Transaction failed - ${txStatus.failureReason}`);
                 }
@@ -405,7 +419,7 @@ function startChargeProcessor() {
                 }
             }
             // Calculate next poll interval based on consecutive failures
-            const baseInterval = 30000; // 30 seconds base
+            const baseInterval = 10000; // 30 seconds base
             const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
             const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
             console.log(`⏰ Next poll in ${nextInterval / 1000} seconds`);

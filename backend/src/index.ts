@@ -53,6 +53,27 @@ app.post(
   requireMerchant,
   async (req: Request, res: Response) => {
     try {
+      const key = req.get("Idempotency-Key");
+      if (!key) {
+        res.status(400).json({ error: "missing_idempotency_key" });
+        return;
+      }
+      if (!req.merchant) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+
+      // Fast path: replay same logical request
+      const existing = await prisma.charge.findUnique({
+        where: {
+          merchantid_idempotencyKey: {
+            merchantid: req.merchant.id,
+            idempotencyKey: key,
+          },
+        },
+      });
+      if (existing) return res.json({ Error: "Duplicate charge" });
+
       const parsed = paymentSchema.safeParse(req.body);
 
       if (!parsed.success) {
@@ -92,6 +113,7 @@ app.post(
           privKey,
           amount: microAmount,
           merchantid: merchant.id,
+          idempotencyKey: key,
         },
       });
 
@@ -147,7 +169,6 @@ app.post("/api/merchants/signup", async (req: Request, res: Response) => {
       },
     });
 
-    // optional: set a short session cookie for a future dashboard
     const token = jwt.sign({ sub: merchant.id }, process.env.JWT_SECRET!, {
       expiresIn: "2h",
     });
@@ -165,3 +186,7 @@ app.post("/api/merchants/signup", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "signup_failed" });
   }
 });
+
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, time: new Date().toISOString() })
+);

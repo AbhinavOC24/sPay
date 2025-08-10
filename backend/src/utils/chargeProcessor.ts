@@ -204,7 +204,7 @@ async function processPayoutConfirmed() {
 
         if (hasWebhook) {
           try {
-            await deliverChargeConfirmedWebhook({
+            const ok = await deliverChargeConfirmedWebhook({
               payload: {
                 chargeId: updatedCharge.chargeId,
                 address: updatedCharge.address,
@@ -219,15 +219,21 @@ async function processPayoutConfirmed() {
             });
 
             // Only after successful webhook, mark as completed
-            await prisma.charge.update({
-              where: { id: charge.id },
-              data: {
-                status: "COMPLETED",
-                completedAt: new Date(),
-              },
-            });
 
-            console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+            if (ok) {
+              await prisma.charge.update({
+                where: { id: charge.id },
+                data: {
+                  status: "COMPLETED",
+                  completedAt: new Date(),
+                },
+              });
+              console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+            } else {
+              console.error(
+                `📧 Webhook delivery failed for charge ${charge.chargeId}, will retry later`
+              );
+            }
           } catch (webhookError) {
             console.error(
               `📧 Webhook delivery failed for charge ${charge.chargeId}:`,
@@ -307,7 +313,7 @@ export async function retryFailedWebhooks() {
       continue;
 
     try {
-      await deliverChargeConfirmedWebhook({
+      const ok = await deliverChargeConfirmedWebhook({
         payload: {
           chargeId: charge.chargeId,
           address: charge.address,
@@ -330,7 +336,19 @@ export async function retryFailedWebhooks() {
         },
       });
 
-      console.log(`📧 Webhook retry successful for charge ${charge.chargeId}`);
+      if (ok) {
+        await prisma.charge.update({
+          where: { id: charge.id },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        console.log(
+          `📧 Webhook retry successful for charge ${charge.chargeId}`
+        );
+      } else {
+        console.error(
+          `📧 Webhook retry still failing for charge ${charge.chargeId}`
+        );
+      }
     } catch (error) {
       console.error(
         `📧 Webhook retry failed for charge ${charge.chargeId}:`,
@@ -480,7 +498,7 @@ export function startChargeProcessor() {
     }
 
     // Calculate next poll interval based on consecutive failures
-    const baseInterval = 30000; // 30 seconds base
+    const baseInterval = 10000; // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
 

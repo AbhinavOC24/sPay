@@ -22,6 +22,8 @@ model Charge {
   privKey   String?  
   merchantid String
   merchant Merchant @relation(fields: [merchantid],references: [id])
+    idempotencyKey  String
+
 
  // Timing fields
   paidAt    DateTime?
@@ -38,6 +40,7 @@ model Charge {
   payoutTxId        String?   // Store the payout transaction ID
   failureReason     String?   // Store failure reason for debugging
   
+  @@unique([merchantid, idempotencyKey]) // <— one logical charge per key per merchant
 
 
 

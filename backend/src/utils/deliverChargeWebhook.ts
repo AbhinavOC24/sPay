@@ -8,24 +8,27 @@ export async function deliverChargeConfirmedWebhook({
   payload,
   config,
 }: WebhookDeliveryParams) {
-  const eventEnvelope = {
-    type: "charge.confirmed",
-    data: payload,
-  };
-  const bodyJson = JSON.stringify(eventEnvelope);
-
   if (!config.secret || !config.url) {
     console.log(
       "📧 Can't find webhook secret and url from deliverChargeWebhook"
     );
     return;
   }
+  // Stable per logical event (do NOT change across retries)
+  const eventId = `${payload.chargeId}:payout_confirmed`;
+  const nowIso = new Date().toISOString();
 
   // Generate HMAC signature
-  const signature = crypto
-    .createHmac("sha256", config.secret)
-    .update(bodyJson)
-    .digest("hex");
+  const eventEnvelope = {
+    type: "charge.confirmed",
+    eventId,
+    occurredAt: nowIso,
+    data: payload,
+  };
+  const bodyJson = JSON.stringify(eventEnvelope);
+  const signature =
+    "sha256=" +
+    crypto.createHmac("sha256", config.secret).update(bodyJson).digest("hex");
 
   let attempts = 0;
   const maxAttempts = 3;
@@ -41,10 +44,12 @@ export async function deliverChargeConfirmedWebhook({
       await axios.post(config.url, bodyJson, {
         headers: {
           "Content-Type": "application/json",
-          "x-sbtc-signature": signature,
-          "x-sbtc-event-id": payload.chargeId,
+          "X-SBTC-Signature": signature, // HMAC of raw body
+          "X-SBTC-Event-Id": eventId, // idem key for receiver
+          "X-SBTC-Event-Attempt": String(attempts),
+          "X-SBTC-Event-Timestamp": nowIso,
         },
-        timeout: 5000,
+        timeout: 8000,
       });
 
       // Update webhook success status
@@ -60,7 +65,7 @@ export async function deliverChargeConfirmedWebhook({
       console.log(
         `📧 ✅ Webhook delivered successfully for charge ${payload.chargeId}`
       );
-      return;
+      return true;
     } catch (error: any) {
       attempts++;
 
@@ -91,4 +96,5 @@ export async function deliverChargeConfirmedWebhook({
   console.error(
     `📧 💀 All webhook attempts failed for charge ${payload.chargeId}`
   );
+  return false;
 }

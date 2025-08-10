@@ -14,26 +14,55 @@ exports.requireMerchant = requireMerchant;
 const prisma_client_1 = require("../utils/prisma-client");
 function requireMerchant(req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
+        // Prefer Authorization: Bearer <apiKey>:<apiSecret>
+        const auth = req.header("authorization");
+        if (auth === null || auth === void 0 ? void 0 : auth.startsWith("Bearer ")) {
+            const token = auth.slice("Bearer ".length).trim();
+            const [apiKey, apiSecret] = token.split(":");
+            if (!apiKey || !apiSecret) {
+                return res.status(401).json({ error: "invalid_auth_format" });
+            }
+            const merchant = yield prisma_client_1.prisma.merchant.findUnique({
+                where: { apiKey },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    apiKey: true,
+                    apiSecret: true,
+                    webhookUrl: true,
+                    webhookSecret: true,
+                    payoutStxAddress: true,
+                },
+            });
+            if (!merchant || merchant.apiSecret !== apiSecret) {
+                return res.status(401).json({ error: "invalid_credentials" });
+            }
+            req.merchant = merchant;
+            return next();
+        }
+        // Back-compat: allow x-api-key only (legacy)
         const apiKey = req.header("x-api-key");
-        if (!apiKey)
-            return res.status(401).json({ error: "Missing X-API-Key" });
-        const merchant = yield prisma_client_1.prisma.merchant.findUnique({
-            where: { apiKey },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                apiKey: true,
-                apiSecret: true,
-                webhookUrl: true,
-                webhookSecret: true,
-                payoutStxAddress: true,
-            },
-        });
-        if (!merchant)
-            return res.status(401).json({ error: "Invalid API key" });
-        req.merchant = merchant; // attach to request
-        next();
+        if (apiKey) {
+            const merchant = yield prisma_client_1.prisma.merchant.findUnique({
+                where: { apiKey },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    apiKey: true,
+                    apiSecret: true,
+                    webhookUrl: true,
+                    webhookSecret: true,
+                    payoutStxAddress: true,
+                },
+            });
+            if (!merchant)
+                return res.status(401).json({ error: "invalid_api_key" });
+            req.merchant = merchant;
+            return next();
+        }
+        return res.status(401).json({ error: "missing_auth" });
     });
 }
 //# sourceMappingURL=auth.js.map
