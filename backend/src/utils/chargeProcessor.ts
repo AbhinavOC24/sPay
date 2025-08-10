@@ -327,16 +327,9 @@ export async function retryFailedWebhooks() {
         },
       });
 
-      // Mark as completed on successful webhook
-      await prisma.charge.update({
-        where: { id: charge.id },
-        data: {
-          status: "COMPLETED",
-          completedAt: new Date(),
-        },
-      });
-
       if (ok) {
+        // Mark as completed on successful webhook
+
         await prisma.charge.update({
           where: { id: charge.id },
           data: { status: "COMPLETED", completedAt: new Date() },
