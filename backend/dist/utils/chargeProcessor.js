@@ -17,7 +17,7 @@ exports.retryFailedWebhooks = retryFailedWebhooks;
 exports.hasRequiredSbtcBalance = hasRequiredSbtcBalance;
 exports.recoverStuckCharges = recoverStuckCharges;
 exports.startChargeProcessor = startChargeProcessor;
-const prisma_client_1 = require("./prisma-client");
+const db_1 = __importDefault(require("../db"));
 const axios_1 = __importDefault(require("axios"));
 const deliverChargeWebhook_1 = require("./deliverChargeWebhook");
 const transferSbtc_1 = require("./transferSbtc");
@@ -56,7 +56,7 @@ function processPendingCharges() {
 // Step 1: Check for new payments and mark as confirmed
 function processNewPayments() {
     return __awaiter(this, void 0, void 0, function* () {
-        const pendingCharges = yield prisma_client_1.prisma.charge.findMany({
+        const pendingCharges = yield db_1.default.charge.findMany({
             where: { status: "PENDING" },
             include: { merchant: true },
         });
@@ -66,7 +66,7 @@ function processNewPayments() {
                 const paid = yield hasRequiredSbtcBalance(charge.address, charge.amount);
                 if (paid) {
                     // Use database transaction to ensure atomicity
-                    yield prisma_client_1.prisma.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                    yield db_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
                         var _a;
                         // Mark as confirmed
                         const updated = yield tx.charge.update({
@@ -100,14 +100,14 @@ function processNewPayments() {
 // Step 2: Process confirmed charges and initiate payouts
 function processPayoutInitiated() {
     return __awaiter(this, void 0, void 0, function* () {
-        const confirmedCharges = yield prisma_client_1.prisma.charge.findMany({
+        const confirmedCharges = yield db_1.default.charge.findMany({
             where: { status: "CONFIRMED" },
             include: { merchant: true },
         });
         console.log(`🔄 Found ${confirmedCharges.length} confirmed charges ready for payout`);
         for (const charge of confirmedCharges) {
             try {
-                yield prisma_client_1.prisma.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
+                yield db_1.default.$transaction((tx) => __awaiter(this, void 0, void 0, function* () {
                     // Mark as payout initiated to prevent double processing
                     const updated = yield tx.charge.update({
                         where: {
@@ -150,7 +150,7 @@ function processPayoutInitiated() {
 function processPayoutConfirmed() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;
-        const payoutInitiatedCharges = yield prisma_client_1.prisma.charge.findMany({
+        const payoutInitiatedCharges = yield db_1.default.charge.findMany({
             where: {
                 status: "PAYOUT_INITIATED",
                 payoutTxId: { not: null },
@@ -166,7 +166,7 @@ function processPayoutConfirmed() {
                 const txStatus = yield (0, checkTxStatus_1.checkTxStatus)(charge.payoutTxId);
                 if (txStatus.isSuccess) {
                     // First, update to PAYOUT_CONFIRMED in a separate transaction
-                    const updatedCharge = yield prisma_client_1.prisma.charge.update({
+                    const updatedCharge = yield db_1.default.charge.update({
                         where: { id: charge.id },
                         data: {
                             status: "PAYOUT_CONFIRMED",
@@ -196,7 +196,7 @@ function processPayoutConfirmed() {
                             });
                             // Only after successful webhook, mark as completed
                             if (ok) {
-                                yield prisma_client_1.prisma.charge.update({
+                                yield db_1.default.charge.update({
                                     where: { id: charge.id },
                                     data: {
                                         status: "COMPLETED",
@@ -216,7 +216,7 @@ function processPayoutConfirmed() {
                     }
                     else {
                         // No webhook configured, mark as completed immediately
-                        yield prisma_client_1.prisma.charge.update({
+                        yield db_1.default.charge.update({
                             where: { id: charge.id },
                             data: {
                                 status: "COMPLETED",
@@ -257,14 +257,15 @@ function processPayoutConfirmed() {
 function retryFailedWebhooks() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;
-        const payoutConfirmedCharges = yield prisma_client_1.prisma.charge.findMany({
+        const payoutConfirmedCharges = yield db_1.default.charge.findMany({
             where: {
                 status: "PAYOUT_CONFIRMED",
                 webhookLastStatus: "FAILED",
-                webhookAttempts: { lt: 5 }, // Max 5 attempts
+                webhookAttempts: { lt: 10 }, // Max 5 attempts
             },
             include: { merchant: true },
         });
+        console.log(payoutConfirmedCharges);
         console.log(`🔄 Found ${payoutConfirmedCharges.length} failed webhooks to retry`);
         for (const charge of payoutConfirmedCharges) {
             if (!((_a = charge.merchant) === null || _a === void 0 ? void 0 : _a.webhookUrl) || !((_b = charge.merchant) === null || _b === void 0 ? void 0 : _b.webhookSecret))
@@ -283,16 +284,9 @@ function retryFailedWebhooks() {
                         secret: charge.merchant.webhookSecret,
                     },
                 });
-                // Mark as completed on successful webhook
-                yield prisma_client_1.prisma.charge.update({
-                    where: { id: charge.id },
-                    data: {
-                        status: "COMPLETED",
-                        completedAt: new Date(),
-                    },
-                });
                 if (ok) {
-                    yield prisma_client_1.prisma.charge.update({
+                    // Mark as completed on successful webhook
+                    yield db_1.default.charge.update({
                         where: { id: charge.id },
                         data: { status: "COMPLETED", completedAt: new Date() },
                     });
@@ -312,7 +306,7 @@ function retryFailedWebhooks() {
 function markChargeFailed(chargeId, reason) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield prisma_client_1.prisma.charge.update({
+            yield db_1.default.charge.update({
                 where: { chargeId },
                 data: {
                     status: "FAILED",
@@ -363,7 +357,7 @@ function hasRequiredSbtcBalance(address, requiredAmount) {
 // Recovery function to handle stuck transactions
 function recoverStuckCharges() {
     return __awaiter(this, void 0, void 0, function* () {
-        const stuckCharges = yield prisma_client_1.prisma.charge.findMany({
+        const stuckCharges = yield db_1.default.charge.findMany({
             where: {
                 status: "PAYOUT_INITIATED",
                 lastProcessedAt: {
@@ -382,7 +376,7 @@ function recoverStuckCharges() {
                 }
                 else if (txStatus.isSuccess) {
                     // Transaction succeeded but wasn't processed, update status
-                    yield prisma_client_1.prisma.charge.update({
+                    yield db_1.default.charge.update({
                         where: { id: charge.id },
                         data: {
                             status: "PAYOUT_CONFIRMED",

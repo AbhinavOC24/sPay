@@ -5,7 +5,7 @@ import { generateWallet, getStxAddress } from "@stacks/wallet-sdk";
 import { v4 as uuidv4 } from "uuid";
 import { paymentSchema } from "./zod/zodCheck";
 import { generateSecretKey } from "@stacks/wallet-sdk";
-import { prisma } from "./utils/prisma-client";
+import prisma from "./db";
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -21,6 +21,7 @@ import { requireMerchant } from "./middleware/auth";
 
 import { transferStx } from "./utils/transferStx";
 import { deriveHotWallet } from "./utils/deriveHotWallet";
+import { calculateFeeBuffer } from "./utils/feeCalculator";
 
 const app = express();
 app.use(express.json());
@@ -29,14 +30,10 @@ dotenv.config();
 const arg = {
   secretKey: generateSecretKey(),
   // "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-  password: "123123",
+  password: process.env.password as string,
 };
 
-const hotWalletAddress = "ST22TVVHDDQDVTRBKB0AXJWX93SPT1QGQX3KXPSAR";
 const FEE_BUFFER_STX = BigInt(100_000); // 0.1 STX in microSTX
-const mnemonicString =
-  "benefit rough liar guitar scout task own edit stumble chunk fatal release ghost column donkey whale fan clean canvas sustain program field mean swallow";
-const mnemonicArray = mnemonicString.trim().split(/\s+/);
 
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`listening on port ${process.env.BACKEND_PORT}`);
@@ -97,10 +94,17 @@ app.post(
       const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
 
       const { stxPrivateKey, stxAddress } = await deriveHotWallet(
-        mnemonicString
+        process.env.mnemonicString as string
       );
       console.log("hotWallet address", stxAddress);
-      await transferStx(stxPrivateKey, address, FEE_BUFFER_STX);
+      // await transferStx(stxPrivateKey, address, FEE_BUFFER_STX);
+
+      const dynamicFeeBuffer = await calculateFeeBuffer();
+      console.log(
+        `📊 Using dynamic fee: ${dynamicFeeBuffer} microSTX (instead of fixed 100,000)`
+      );
+      await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
+      console.log(`✅ Transferred dynamic fee buffer to temp wallet`);
 
       // const webhookSecret = webhookUrl
       //   ? crypto.randomBytes(32).toString("hex")

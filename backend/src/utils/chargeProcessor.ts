@@ -1,4 +1,4 @@
-import { prisma } from "./prisma-client";
+import prisma from "../db";
 import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
 import { transferSbtc } from "./transferSbtc";
@@ -299,11 +299,11 @@ export async function retryFailedWebhooks() {
     where: {
       status: "PAYOUT_CONFIRMED",
       webhookLastStatus: "FAILED",
-      webhookAttempts: { lt: 5 }, // Max 5 attempts
+      webhookAttempts: { lt: 10 }, // Max 5 attempts
     },
     include: { merchant: true },
   });
-
+  console.log(payoutConfirmedCharges);
   console.log(
     `🔄 Found ${payoutConfirmedCharges.length} failed webhooks to retry`
   );

@@ -1,5 +1,5 @@
 // middleware/auth.ts
-import { prisma } from "../utils/prisma-client";
+import prisma from "../db";
 import { Request, Response, NextFunction } from "express";
 
 export async function requireMerchant(

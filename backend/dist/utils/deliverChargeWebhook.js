@@ -46,7 +46,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deliverChargeConfirmedWebhook = deliverChargeConfirmedWebhook;
-const prisma_client_1 = require("./prisma-client");
+const db_1 = __importDefault(require("../db"));
 const axios_1 = __importDefault(require("axios"));
 const crypto = __importStar(require("crypto"));
 // Send a webhook to the merchant with retries and signature verification
@@ -86,7 +86,7 @@ function deliverChargeConfirmedWebhook(_a) {
                     timeout: 8000,
                 });
                 // Update webhook success status
-                yield prisma_client_1.prisma.charge.update({
+                yield db_1.default.charge.update({
                     where: { chargeId: payload.chargeId },
                     data: {
                         webhookAttempts: { increment: 1 },
@@ -101,7 +101,7 @@ function deliverChargeConfirmedWebhook(_a) {
                 attempts++;
                 console.error(`📧 ❌ Webhook attempt ${attempts} failed for ${payload.chargeId}:`, ((_b = error === null || error === void 0 ? void 0 : error.response) === null || _b === void 0 ? void 0 : _b.status) || (error === null || error === void 0 ? void 0 : error.code) || (error === null || error === void 0 ? void 0 : error.message));
                 // Update webhook failure status
-                yield prisma_client_1.prisma.charge.update({
+                yield db_1.default.charge.update({
                     where: { chargeId: payload.chargeId },
                     data: {
                         webhookAttempts: { increment: 1 },

@@ -18,7 +18,7 @@ const wallet_sdk_1 = require("@stacks/wallet-sdk");
 const uuid_1 = require("uuid");
 const zodCheck_1 = require("./zod/zodCheck");
 const wallet_sdk_2 = require("@stacks/wallet-sdk");
-const prisma_client_1 = require("./utils/prisma-client");
+const db_1 = __importDefault(require("./db"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const keys_1 = require("./utils/keys"); // you already have this
@@ -26,18 +26,16 @@ const chargeProcessor_1 = require("./utils/chargeProcessor");
 const auth_1 = require("./middleware/auth");
 const transferStx_1 = require("./utils/transferStx");
 const deriveHotWallet_1 = require("./utils/deriveHotWallet");
+const feeCalculator_1 = require("./utils/feeCalculator");
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 dotenv_1.default.config();
 const arg = {
     secretKey: (0, wallet_sdk_2.generateSecretKey)(),
     // "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-    password: "123123",
+    password: process.env.password,
 };
-const hotWalletAddress = "ST22TVVHDDQDVTRBKB0AXJWX93SPT1QGQX3KXPSAR";
 const FEE_BUFFER_STX = BigInt(100000); // 0.1 STX in microSTX
-const mnemonicString = "benefit rough liar guitar scout task own edit stumble chunk fatal release ghost column donkey whale fan clean canvas sustain program field mean swallow";
-const mnemonicArray = mnemonicString.trim().split(/\s+/);
 app.listen(process.env.BACKEND_PORT, () => {
     console.log(`listening on port ${process.env.BACKEND_PORT}`);
     (0, chargeProcessor_1.startChargeProcessor)();
@@ -57,7 +55,7 @@ app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, 
             return;
         }
         // Fast path: replay same logical request
-        const existing = yield prisma_client_1.prisma.charge.findUnique({
+        const existing = yield db_1.default.charge.findUnique({
             where: {
                 merchantid_idempotencyKey: {
                     merchantid: req.merchant.id,
@@ -85,13 +83,17 @@ app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, 
         const address = (0, wallet_sdk_1.getStxAddress)(account, "testnet");
         const chargeId = (0, uuid_1.v4)();
         const microAmount = BigInt(Math.floor(parsed.data.amount * 100000000));
-        const { stxPrivateKey, stxAddress } = yield (0, deriveHotWallet_1.deriveHotWallet)(mnemonicString);
+        const { stxPrivateKey, stxAddress } = yield (0, deriveHotWallet_1.deriveHotWallet)(process.env.mnemonicString);
         console.log("hotWallet address", stxAddress);
-        yield (0, transferStx_1.transferStx)(stxPrivateKey, address, FEE_BUFFER_STX);
+        // await transferStx(stxPrivateKey, address, FEE_BUFFER_STX);
+        const dynamicFeeBuffer = yield (0, feeCalculator_1.calculateFeeBuffer)();
+        console.log(`📊 Using dynamic fee: ${dynamicFeeBuffer} microSTX (instead of fixed 100,000)`);
+        yield (0, transferStx_1.transferStx)(stxPrivateKey, address, dynamicFeeBuffer);
+        console.log(`✅ Transferred dynamic fee buffer to temp wallet`);
         // const webhookSecret = webhookUrl
         //   ? crypto.randomBytes(32).toString("hex")
         //   : null;
-        const charge = yield prisma_client_1.prisma.charge.create({
+        const charge = yield db_1.default.charge.create({
             data: {
                 chargeId,
                 address,
@@ -111,7 +113,7 @@ app.post("/api/charge", auth_1.requireMerchant, (req, res) => __awaiter(void 0, 
 // app.post("/api/merchants/signup", async (req: Request, res: Response) => {});
 app.put("/api/merchants/config", auth_1.requireMerchant, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { payoutStxAddress, webhookUrl, webhookSecret } = req.body;
-    const updated = yield prisma_client_1.prisma.merchant.update({
+    const updated = yield db_1.default.merchant.update({
         where: { id: req.merchant.id },
         data: { payoutStxAddress, webhookUrl, webhookSecret },
         select: { id: true, payoutStxAddress: true, webhookUrl: true },
@@ -125,13 +127,13 @@ app.post("/api/merchants/signup", (req, res) => __awaiter(void 0, void 0, void 0
         if (!name || !email || !password) {
             return res.status(400).json({ error: "name, email, password required" });
         }
-        const exists = yield prisma_client_1.prisma.merchant.findUnique({ where: { email } });
+        const exists = yield db_1.default.merchant.findUnique({ where: { email } });
         if (exists)
             return res.status(409).json({ error: "Email already in use" });
         const hash = yield bcryptjs_1.default.hash(password, 10);
         const apiKey = (0, keys_1.genApiKey)();
         const apiSecret = (0, keys_1.genApiSecret)();
-        const merchant = yield prisma_client_1.prisma.merchant.create({
+        const merchant = yield db_1.default.merchant.create({
             data: {
                 name,
                 email,

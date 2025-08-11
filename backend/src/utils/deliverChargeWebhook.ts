@@ -1,4 +1,4 @@
-import { prisma } from "./prisma-client";
+import prisma from "../db";
 import axios from "axios";
 import * as crypto from "crypto";
 import { WebhookDeliveryParams } from "../types/types";

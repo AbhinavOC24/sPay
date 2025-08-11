@@ -8,10 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireMerchant = requireMerchant;
 // middleware/auth.ts
-const prisma_client_1 = require("../utils/prisma-client");
+const db_1 = __importDefault(require("../db"));
 function requireMerchant(req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
         // Prefer Authorization: Bearer <apiKey>:<apiSecret>
@@ -22,7 +25,7 @@ function requireMerchant(req, res, next) {
             if (!apiKey || !apiSecret) {
                 return res.status(401).json({ error: "invalid_auth_format" });
             }
-            const merchant = yield prisma_client_1.prisma.merchant.findUnique({
+            const merchant = yield db_1.default.merchant.findUnique({
                 where: { apiKey },
                 select: {
                     id: true,
@@ -44,7 +47,7 @@ function requireMerchant(req, res, next) {
         // Back-compat: allow x-api-key only (legacy)
         const apiKey = req.header("x-api-key");
         if (apiKey) {
-            const merchant = yield prisma_client_1.prisma.merchant.findUnique({
+            const merchant = yield db_1.default.merchant.findUnique({
                 where: { apiKey },
                 select: {
                     id: true,
