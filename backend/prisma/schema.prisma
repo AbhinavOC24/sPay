@@ -16,7 +16,7 @@ datasource db {
 model Charge {
   id        String   @id @default(uuid())
   chargeId  String   @unique
-  address   String   @unique
+address   String   @unique
   amount    BigInt
   status    String   @default("PENDING") 
   privKey   String?  
