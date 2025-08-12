@@ -3,6 +3,7 @@ import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
 import { transferSbtc } from "./transferSbtc";
 import { checkTxStatus } from "./checkTxStatus";
+import { publishChargeUpdate } from "./publishChargeUpdate";
 
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
 //PENDING → CONFIRMED → PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
@@ -76,6 +77,11 @@ async function processNewPayments() {
               `Missing merchant payout address for charge ${updated.chargeId}`
             );
           }
+          try {
+            await publishChargeUpdate(charge.chargeId);
+          } catch (e) {
+            console.error("Emit/public update failed for", charge.chargeId, e);
+          }
         });
       }
     } catch (error) {
@@ -93,6 +99,74 @@ async function processNewPayments() {
 }
 
 // Step 2: Process confirmed charges and initiate payouts
+// async function processPayoutInitiated() {
+//   const confirmedCharges = await prisma.charge.findMany({
+//     where: { status: "CONFIRMED" },
+//     include: { merchant: true },
+//   });
+
+//   console.log(
+//     `🔄 Found ${confirmedCharges.length} confirmed charges ready for payout`
+//   );
+
+//   for (const charge of confirmedCharges) {
+//     try {
+//       await prisma.$transaction(async (tx) => {
+//         // Mark as payout initiated to prevent double processing
+//         const updated = await tx.charge.update({
+//           where: {
+//             id: charge.id,
+//             status: "CONFIRMED", // Ensure status hasn't changed
+//           },
+//           data: {
+//             status: "PAYOUT_INITIATED",
+//             lastProcessedAt: new Date(),
+//           },
+//           include: { merchant: true },
+//         });
+
+//         // If update affected 0 rows, another process got it
+//         if (!updated) {
+//           console.log(`⚠️ Charge ${charge.chargeId} already being processed`);
+//           return;
+//         }
+
+//         console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
+
+//         // Initiate the SBTC transfer
+//         const { txid } = await transferSbtc(
+//           updated.privKey!,
+//           updated.address,
+//           updated.merchant!.payoutStxAddress!,
+//           updated.amount
+//         );
+
+//         // Store the transaction ID
+//         await tx.charge.update({
+//           where: { id: charge.id },
+//           data: {
+//             payoutTxId: txid,
+//             lastProcessedAt: new Date(),
+//           },
+//         });
+//         await publishChargeUpdate(charge.chargeId);
+
+//         console.log(
+//           `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
+//         );
+//       });
+//     } catch (error) {
+//       console.error(
+//         `❌ Error initiating payout for charge ${charge.chargeId}:`,
+//         error
+//       );
+//       await markChargeFailed(
+//         charge.chargeId,
+//         `Payout initiation failed: ${error}`
+//       );
+//     }
+//   }
+// }
 async function processPayoutInitiated() {
   const confirmedCharges = await prisma.charge.findMany({
     where: { status: "CONFIRMED" },
@@ -105,58 +179,78 @@ async function processPayoutInitiated() {
 
   for (const charge of confirmedCharges) {
     try {
-      await prisma.$transaction(async (tx) => {
-        // Mark as payout initiated to prevent double processing
-        const updated = await tx.charge.update({
-          where: {
-            id: charge.id,
-            status: "CONFIRMED", // Ensure status hasn't changed
-          },
-          data: {
-            status: "PAYOUT_INITIATED",
-            lastProcessedAt: new Date(),
-          },
-          include: { merchant: true },
-        });
-
-        // If update affected 0 rows, another process got it
-        if (!updated) {
-          console.log(`⚠️ Charge ${charge.chargeId} already being processed`);
-          return;
-        }
-
-        console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
-
-        // Initiate the SBTC transfer
-        const { txid } = await transferSbtc(
-          updated.privKey!,
-          updated.address,
-          updated.merchant!.payoutStxAddress!,
-          updated.amount
-        );
-
-        // Store the transaction ID
-        await tx.charge.update({
-          where: { id: charge.id },
-          data: {
-            payoutTxId: txid,
-            lastProcessedAt: new Date(),
-          },
-        });
-
-        console.log(
-          `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
-        );
+      // 1) Atomically claim the job: CONFIRMED -> PAYOUT_INITIATED
+      const claim = await prisma.charge.updateMany({
+        where: { id: charge.id, status: "CONFIRMED" },
+        data: {
+          status: "PAYOUT_INITIATED",
+          lastProcessedAt: new Date(),
+        },
       });
+
+      if (claim.count === 0) {
+        // someone else took it or status changed
+        console.log(
+          `⚠️ Charge ${charge.chargeId} not claimed (status changed)`
+        );
+        continue;
+      }
+
+      console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
+
+      // 2) Do the network call OUTSIDE any transaction
+      if (!charge.privKey) {
+        throw new Error(
+          `Missing temp wallet privKey for charge ${charge.chargeId}`
+        );
+      }
+      if (!charge.merchant?.payoutStxAddress) {
+        throw new Error(
+          `Missing merchant payout address for charge ${charge.chargeId}`
+        );
+      }
+
+      const { txid } = await transferSbtc(
+        charge.privKey,
+        charge.address,
+        charge.merchant.payoutStxAddress,
+        charge.amount
+      );
+
+      // 3) Persist txid (still outside a long transaction)
+      await prisma.charge.update({
+        where: { id: charge.id },
+        data: { payoutTxId: txid, lastProcessedAt: new Date() },
+      });
+
+      try {
+        await publishChargeUpdate(charge.chargeId);
+      } catch (e) {
+        console.error("Emit/public update failed for", charge.chargeId, e);
+      }
+
+      console.log(
+        `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
+      );
     } catch (error) {
       console.error(
         `❌ Error initiating payout for charge ${charge.chargeId}:`,
         error
       );
-      await markChargeFailed(
-        charge.chargeId,
-        `Payout initiation failed: ${error}`
-      );
+
+      // Roll back the claim or mark failed
+      try {
+        await prisma.charge.updateMany({
+          where: { id: charge.id, status: "PAYOUT_INITIATED" },
+          data: {
+            status: "FAILED", // or "CONFIRMED" if you want to retry later
+            failureReason: `Payout initiation failed: ${String(error)}`,
+            lastProcessedAt: new Date(),
+          },
+        });
+      } catch (e2) {
+        console.error("Rollback after payout-init failure also failed:", e2);
+      }
     }
   }
 }
@@ -194,6 +288,7 @@ async function processPayoutConfirmed() {
           },
           include: { merchant: true },
         });
+        await publishChargeUpdate(updatedCharge.chargeId);
 
         console.log(`✅ SBTC payout confirmed for charge ${charge.chargeId}`);
 

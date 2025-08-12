@@ -22,21 +22,23 @@ model Charge {
   privKey   String?  
   merchantid String
   merchant Merchant @relation(fields: [merchantid],references: [id])
-    idempotencyKey  String
-
+  idempotencyKey  String
+  expiresAt     DateTime?
+  success_url   String?
+  cancel_url    String?
 
  // Timing fields
   paidAt    DateTime?
   createdAt DateTime @default(now())
   payoutConfirmedAt DateTime?
   completedAt       DateTime?
-  lastProcessedAt   DateTime?
+lastProcessedAt   DateTime?
   
   // webhook delivery state (per event)
   webhookAttempts   Int      @default(0)
   webhookLastStatus String?
 
-   // Transaction tracking
+  // Transaction trackingp
   payoutTxId        String?   // Store the payout transaction ID
   failureReason     String?   // Store failure reason for debugging
   

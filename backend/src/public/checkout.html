@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pay with sBTC</title>
+    <link rel="stylesheet" href="/static/checkout.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h2>Complete your sBTC payment</h2>
+
+        <div class="row">
+          <div class="qr">
+            <img id="qr" width="160" height="160" alt="QR" />
+          </div>
+
+          <div class="main">
+            <div class="label">Amount</div>
+            <div class="value"><span id="amt">—</span> sBTC</div>
+
+            <div style="height: 8px"></div>
+
+            <div class="label">Send to</div>
+            <code id="addr">—</code>
+
+            <div class="actions">
+              <button id="copyAddr">Copy address</button>
+              <button id="copyAmt">Copy amount</button>
+              <button class="btn" id="cancelBtn" type="button">Cancel</button>
+            </div>
+
+            <div id="timer" class="muted">Expires in —:—</div>
+          </div>
+        </div>
+
+        <div id="status" class="status">Status: —</div>
+        <div id="hint" class="muted">Waiting for payment…</div>
+        <small class="muted"
+          >Keep this tab open. It updates automatically.</small
+        >
+      </div>
+    </div>
+
+    <!-- axios via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- your logic -->
+    <script src="/static/checkout.js"></script>
+  </body>
+</html>

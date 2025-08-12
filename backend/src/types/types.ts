@@ -18,3 +18,46 @@ export interface WebhookDeliveryParams {
   payload: ChargeConfirmedPayload;
   config: MerchantWebhookConfig;
 }
+export type InternalStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "PAYOUT_INITIATED"
+  | "PAYOUT_CONFIRMED"
+  | "COMPLETED"
+  | "EXPIRED"
+  | "FAILED";
+
+export type PublicStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "UNDERPAID"
+  | "EXPIRED"
+  | "FAILED"; // optional to surface
+
+export function toPublicStatus(s: InternalStatus): PublicStatus {
+  switch (s) {
+    case "PENDING":
+      return "PENDING";
+    case "CONFIRMED":
+    case "PAYOUT_INITIATED":
+    case "PAYOUT_CONFIRMED":
+    case "COMPLETED":
+      return "CONFIRMED"; // after funds hit you, it’s “paid” to the shopper
+    case "EXPIRED":
+      return "EXPIRED";
+    case "FAILED":
+      return "FAILED";
+  }
+}
+
+// Event we stream to the checkout (SSE)
+export interface ChargeEventPublic {
+  chargeId: string;
+  address: string;
+  amount: string | number; // base units
+  status: PublicStatus;
+  txid?: string | null;
+
+  expiresAt?: string; // ISO
+  remainingSec?: number; // for countdown
+}
