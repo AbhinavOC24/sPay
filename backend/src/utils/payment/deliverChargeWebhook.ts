@@ -1,7 +1,7 @@
-import prisma from "../db";
+import prisma from "../../db";
 import axios from "axios";
 import * as crypto from "crypto";
-import { WebhookDeliveryParams } from "../types/types";
+import { WebhookDeliveryParams } from "../../types/types";
 
 // Send a webhook to the merchant with retries and signature verification
 export async function deliverChargeConfirmedWebhook({

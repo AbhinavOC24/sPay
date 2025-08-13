@@ -1,4 +1,4 @@
-import { toPublicStatus } from "../types/types";
+import { toPublicStatus } from "../../types/types";
 
 export default function toChargeEvent(c: any): any {
   const now = new Date();

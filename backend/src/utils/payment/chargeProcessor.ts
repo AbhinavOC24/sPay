@@ -1,7 +1,7 @@
-import prisma from "../db";
+import prisma from "../../db";
 import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
-import { transferSbtc } from "./transferSbtc";
+import { transferSbtc } from "../blockchain/transferSbtc";
 import { checkTxStatus } from "./checkTxStatus";
 import { publishChargeUpdate } from "./publishChargeUpdate";
 

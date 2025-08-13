@@ -21,13 +21,13 @@ import {
   recoverStuckCharges,
   retryFailedWebhooks,
   startChargeProcessor,
-} from "./utils/chargeProcessor";
+} from "./utils/payment/chargeProcessor";
 import { requireMerchant } from "./middleware/auth";
 
-import { transferStx } from "./utils/transferStx";
-import { deriveHotWallet } from "./utils/deriveHotWallet";
-import { calculateFeeBuffer } from "./utils/feeCalculator";
-import toChargeEvent from "./utils/publicPayloadBuilder";
+import { transferStx } from "./utils/blockchain/transferStx";
+import { deriveHotWallet } from "./utils/blockchain/deriveHotWallet";
+import { calculateFeeBuffer } from "./utils/payment/feeCalculator";
+import toChargeEvent from "./utils/payment/publicPayloadBuilder";
 import { chargeTopic, eventBus } from "./utils/eventBus";
 import { CANCELLED } from "dns";
 
