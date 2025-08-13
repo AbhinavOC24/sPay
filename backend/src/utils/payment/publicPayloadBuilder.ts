@@ -13,7 +13,7 @@ export default function toChargeEvent(c: any): any {
   ) {
     c.status = "EXPIRED"; // client can reflect immediately
   }
-  console.log("STATUS FOUND AT BACKEND toChargeEvent:", c.status);
+
   return {
     chargeId: c.chargeId,
     address: c.address,
@@ -21,6 +21,7 @@ export default function toChargeEvent(c: any): any {
     status: toPublicStatus(c.status),
     txid: c.txid ?? null,
     expiresAt: exp.toISOString(),
+    usdRate: c.usdRate,
     remainingSec,
   };
 }

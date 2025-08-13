@@ -271,11 +271,8 @@
               amtEl.textContent = fmtBtcMicros(c.amount);
 
             // Optional USD lock fields if you added them to the API
-            if (
-              c.fiat_amount_locked !== undefined &&
-              c.fiat_rate_locked !== undefined
-            ) {
-              usdEl.textContent = Number(c.fiat_amount_locked).toFixed(2);
+            if (c.usdRate !== undefined) {
+              usdEl.textContent = Number(c.usdRate).toFixed(2);
               usdRow.hidden = false;
             }
 

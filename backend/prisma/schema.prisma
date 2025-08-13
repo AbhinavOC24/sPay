@@ -26,6 +26,7 @@ address   String   @unique
   expiresAt     DateTime?
   success_url   String?
   cancel_url    String?
+  usdRate       Int  @default(1)
 
  // Timing fields
   paidAt    DateTime?
@@ -43,7 +44,6 @@ lastProcessedAt   DateTime?
   failureReason     String?   // Store failure reason for debugging
   
   @@unique([merchantid, idempotencyKey]) // <— one logical charge per key per merchant
-
 
 
 }

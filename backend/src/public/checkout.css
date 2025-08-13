@@ -179,7 +179,17 @@ h1#title {
   gap: 10px;
   margin-top: 8px;
 }
+.usd-inline {
+  margin-left: 8px;
+  font-size: 0.85em; /* smaller than sBTC amount */
+  font-weight: 500; /* lighter weight */
+  color: var(--muted); /* muted tone */
+  letter-spacing: 0.02em; /* subtle spacing for readability */
+}
 
+.usd-inline .unit {
+  margin-left: 2px;
+}
 .btn {
   appearance: none;
   border: 1px solid var(--ring);

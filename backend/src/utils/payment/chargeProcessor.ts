@@ -17,6 +17,7 @@ let isProcessing = false;
 
 // Main function - processes all pending charges through the state machine
 export async function processPendingCharges() {
+  await expireOldCharges();
   // Prevent concurrent execution
   if (isProcessing) {
     console.log("Charge processing already in progress, skipping...");
@@ -559,6 +560,21 @@ export async function recoverStuckCharges() {
         "Recovery: Missing transaction ID after 30 minutes"
       );
     }
+  }
+}
+// utils/payment/chargeProcessor.ts
+export async function expireOldCharges() {
+  const now = new Date();
+  const expired = await prisma.charge.updateMany({
+    where: {
+      status: "PENDING",
+      expiresAt: { lte: now },
+    },
+    data: { status: "EXPIRED" },
+  });
+
+  if (expired.count > 0) {
+    console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
   }
 }
 

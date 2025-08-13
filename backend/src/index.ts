@@ -30,6 +30,7 @@ import { calculateFeeBuffer } from "./utils/payment/feeCalculator";
 import toChargeEvent from "./utils/payment/publicPayloadBuilder";
 import { chargeTopic, eventBus } from "./utils/eventBus";
 import { CANCELLED } from "dns";
+import fetchUsdExchangeRate from "./utils/blockchain/fetchUsdExchangeRate";
 
 const app = express();
 app.use(express.json());
@@ -99,7 +100,8 @@ app.post(
       const address = getStxAddress(account, "testnet");
       const chargeId = uuidv4();
       const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
-
+      const rateUsd = await fetchUsdExchangeRate();
+      const amountUsd = Number(parsed.data.amount) * rateUsd;
       const { stxPrivateKey, stxAddress } = await deriveHotWallet(
         process.env.mnemonicString as string
       );
@@ -128,6 +130,7 @@ app.post(
           cancel_url: parsed.data.cancel_url,
           merchantid: merchant.id,
           idempotencyKey: key,
+          usdRate: amountUsd,
           expiresAt,
         },
       });
@@ -223,6 +226,7 @@ app.get("/charges/:id", async (req, res) => {
       payoutTxId: true,
       createdAt: true,
       expiresAt: true,
+      usdRate: true,
       success_url: true,
       cancel_url: true,
     },
@@ -262,6 +266,7 @@ app.get("/charges/:id/events", async (req, res) => {
       amount: true,
       status: true,
       payoutTxId: true,
+      usdRate: true,
       createdAt: true,
       expiresAt: true,
     },
@@ -355,6 +360,7 @@ app.post("/charges/:id/cancel", async (req, res) => {
       amount: true,
       payoutTxId: true,
       createdAt: true,
+      usdRate: true,
       expiresAt: true,
       success_url: true,
       cancel_url: true,
@@ -406,6 +412,7 @@ app.post("/charges/:id/cancel", async (req, res) => {
       status: true,
       payoutTxId: true,
       createdAt: true,
+      usdRate: true,
       expiresAt: true,
       success_url: true,
       cancel_url: true,
