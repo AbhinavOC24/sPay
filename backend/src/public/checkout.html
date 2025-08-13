@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,44 +8,76 @@
   </head>
   <body>
     <div class="wrap">
-      <div class="card">
-        <h2>Complete your sBTC payment</h2>
-
-        <div class="row">
-          <div class="qr">
-            <img id="qr" width="160" height="160" alt="QR" />
+      <main class="card" role="main" aria-labelledby="title">
+        <header class="card__header">
+          <div class="brand">
+            <div class="dot"></div>
+            <h1 id="title">Complete your sBTC payment</h1>
           </div>
+          <!-- Your JS updates #status text + class (muted|warn|ok|err) -->
+          <div id="status" class="status muted">Status: —</div>
+        </header>
 
-          <div class="main">
-            <div class="label">Amount</div>
-            <div class="value"><span id="amt">—</span> sBTC</div>
-
-            <div style="height: 8px"></div>
-
-            <div class="label">Send to</div>
-            <code id="addr">—</code>
-
-            <div class="actions">
-              <button id="copyAddr">Copy address</button>
-              <button id="copyAmt">Copy amount</button>
-              <button class="btn" id="cancelBtn" type="button">Cancel</button>
+        <section class="card__body">
+          <div class="pay">
+            <div class="qr">
+              <!-- ID kept the same -->
+              <img id="qr" width="180" height="180" alt="Payment QR code" />
+              <small class="muted qr__hint">Scan with your Stacks wallet</small>
             </div>
 
-            <div id="timer" class="muted">Expires in —:—</div>
-          </div>
-        </div>
+            <div class="main">
+              <div class="field">
+                <div class="label">Amount</div>
+                <div class="value">
+                  <span id="amt">—</span>
+                  <span class="unit">sBTC</span>
+                </div>
+              </div>
 
-        <div id="status" class="status">Status: —</div>
-        <div id="hint" class="muted">Waiting for payment…</div>
-        <small class="muted"
-          >Keep this tab open. It updates automatically.</small
-        >
-      </div>
+              <div class="spacer"></div>
+
+              <div class="field">
+                <div class="label">Send to</div>
+                <!-- ID kept the same -->
+                <code id="addr" class="addr">—</code>
+              </div>
+
+              <div class="actions">
+                <!-- IDs kept the same -->
+                <button id="copyAddr" type="button" class="btn ghost">
+                  Copy address
+                </button>
+                <button id="copyAmt" type="button" class="btn ghost">
+                  Copy amount
+                </button>
+                <button id="cancelBtn" type="button" class="btn danger">
+                  Cancel
+                </button>
+              </div>
+
+              <!-- ID kept the same; JS updates text -->
+              <div id="timer" class="muted timer">Expires in —:—</div>
+            </div>
+          </div>
+
+          <!-- ID kept the same; JS updates content + classes -->
+          <div id="hint" class="hint muted">Waiting for payment…</div>
+          <small class="muted subnote"
+            >Keep this tab open. It updates automatically.</small
+          >
+        </section>
+
+        <footer class="card__footer">
+          <span class="muted">Powered by sBTC on Stacks</span>
+          <span class="dot dot--pulse" aria-hidden="true"></span>
+        </footer>
+      </main>
     </div>
 
     <!-- axios via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <!-- your logic -->
+    <!-- your logic (unchanged) -->
     <script src="/static/checkout.js"></script>
   </body>
 </html>

@@ -586,7 +586,7 @@ export function startChargeProcessor() {
     }
 
     // Calculate next poll interval based on consecutive failures
-    const baseInterval = 10000; // 30 seconds base
+    const baseInterval = 30000; // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
 

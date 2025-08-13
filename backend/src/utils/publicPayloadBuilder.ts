@@ -7,6 +7,13 @@ export default function toChargeEvent(c: any): any {
     : new Date(new Date(c.createdAt).getTime() + 15 * 60 * 1000);
   const remainingSec = Math.max(0, Math.floor((+exp - +now) / 1000));
 
+  if (
+    remainingSec === 0 &&
+    (c.status === "PENDING" || c.status === "DETECTED")
+  ) {
+    c.status = "EXPIRED"; // client can reflect immediately
+  }
+  console.log("STATUS FOUND AT BACKEND toChargeEvent:", c.status);
   return {
     chargeId: c.chargeId,
     address: c.address,

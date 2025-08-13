@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="cache-control" content="no-store" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checkout Link Expired</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <style>
+      :root {
+        --bg: #0b0d10;
+        --card: #12161b;
+        --muted: #9aa4b2;
+        --text: #e6edf3;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --err: #ef4444;
+        --ring: #1f2937;
+        --btn: #1f2937;
+        --btnText: #e6edf3;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f7f9;
+          --card: #ffffff;
+          --muted: #667085;
+          --text: #101828;
+          --ring: #e5e7eb;
+          --btn: #111827;
+          --btnText: #ffffff;
+        }
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+          "Segoe UI Emoji";
+        background: radial-gradient(
+          1200px 800px at 50% -10%,
+          #1a2230 0%,
+          var(--bg) 60%
+        );
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: 100%;
+        max-width: 560px;
+        background: var(--card);
+        border: 1px solid var(--ring);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--ring);
+      }
+      .status-pill {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        background: color-mix(in srgb, var(--err) 18%, transparent);
+        border: 1px solid color-mix(in srgb, var(--err) 50%, transparent);
+        color: var(--err);
+        font-weight: 600;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+      }
+      .body {
+        padding: 22px;
+      }
+      h1 {
+        margin: 6px 0 8px;
+        font-size: 20px;
+      }
+      p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 14px;
+      }
+      .row .label {
+        color: var(--muted);
+      }
+      .row .value {
+        font-variant-numeric: tabular-nums;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 22px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        appearance: none;
+        border: 1px solid var(--ring);
+        background: var(--btn);
+        color: var(--btnText);
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .btn.secondary {
+        background: transparent;
+        color: var(--text);
+      }
+      .note {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .icon {
+        width: 18px;
+        height: 18px;
+      }
+      .footer {
+        padding: 14px 20px;
+        border-top: 1px solid var(--ring);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      code.kbd {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--ring);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      a {
+        color: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" role="main" aria-labelledby="title">
+      <div class="header">
+        <span class="status-pill" title="This checkout link has expired">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 6v6l4 2"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+            />
+          </svg>
+          EXPIRED
+        </span>
+        <h1 id="title">Checkout link expired</h1>
+      </div>
+
+      <div class="body">
+        <p>
+          This payment link is no longer valid. Price locks last for a short
+          window to account for BTC volatility. Please return to the store to
+          get a fresh link.
+        </p>
+
+        <div class="grid" id="details" hidden>
+          <div class="row">
+            <span class="label">Charge ID</span
+            ><span class="value" id="cid">—</span>
+          </div>
+          <div class="row">
+            <span class="label">Requested (sBTC)</span
+            ><span class="value" id="amt">—</span>
+          </div>
+          <div class="row" id="usdRow" hidden>
+            <span class="label">≈ USD (locked)</span
+            ><span class="value" id="usd">—</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a id="returnBtn" class="btn" href="#" style="display: none"
+            >Return to store</a
+          >
+          <button class="btn secondary" onclick="location.reload()">
+            Refresh page
+          </button>
+          <button class="btn secondary" id="copyIdBtn" title="Copy Charge ID">
+            Copy ID
+          </button>
+        </div>
+
+        <div class="note">
+          If you believe this is a mistake, contact the merchant and share your
+          Charge ID.
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>Powered by sBTC on Stacks</span>
+        <span id="ts"></span>
+      </div>
+    </main>
+
+    <script>
+      // Extract /checkout/:id
+      const chargeId = location.pathname.split("/").pop();
+      const cidEl = document.getElementById("cid");
+      const amtEl = document.getElementById("amt");
+      const usdEl = document.getElementById("usd");
+      const usdRow = document.getElementById("usdRow");
+      const details = document.getElementById("details");
+      const returnBtn = document.getElementById("returnBtn");
+      const tsEl = document.getElementById("ts");
+      const copyIdBtn = document.getElementById("copyIdBtn");
+
+      function fmtBtcMicros(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return "—";
+        return (n / 1e8).toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+      }
+
+      (async function init() {
+        tsEl.textContent = new Date().toLocaleString();
+
+        if (chargeId && cidEl) {
+          cidEl.textContent = chargeId;
+          details.hidden = false;
+        }
+
+        // Try to fetch charge snapshot to populate amount + cancel_url
+        try {
+          const r = await fetch(`/charges/${chargeId}`, { cache: "no-store" });
+          if (r.ok) {
+            const c = await r.json();
+            // amount is in micro units per your API
+            if (c.amount !== undefined)
+              amtEl.textContent = fmtBtcMicros(c.amount);
+
+            // Optional USD lock fields if you added them to the API
+            if (
+              c.fiat_amount_locked !== undefined &&
+              c.fiat_rate_locked !== undefined
+            ) {
+              usdEl.textContent = Number(c.fiat_amount_locked).toFixed(2);
+              usdRow.hidden = false;
+            }
+
+            // Prefer cancel_url from API; else check query param (?cancel_url=...)
+            if (c.cancel_url) {
+              returnBtn.href = c.cancel_url;
+              returnBtn.style.display = "inline-flex";
+            } else {
+              const u = new URL(location.href);
+              const q = u.searchParams.get("cancel_url");
+              if (q) {
+                returnBtn.href = q;
+                returnBtn.style.display = "inline-flex";
+              }
+            }
+          }
+        } catch (e) {
+          // swallow network errors; page still usable
+        }
+
+        if (copyIdBtn) {
+          copyIdBtn.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(chargeId || "");
+              copyIdBtn.textContent = "Copied!";
+              setTimeout(() => (copyIdBtn.textContent = "Copy ID"), 1200);
+            } catch {}
+          };
+        }
+      })();
+    </script>
+  </body>
+</html>

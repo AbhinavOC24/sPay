@@ -133,6 +133,7 @@ app.post(
       });
 
       console.log(charge);
+      const paymentUrl = `${process.env.BACKEND_URL}/checkout/${chargeId}`;
       // res.json({
       //   chargeId: charge.chargeId,
       //   checkout_url: `${process.env.PUBLIC_BASE_URL}/checkout/${charge.chargeId}`,
@@ -140,7 +141,7 @@ app.post(
       //   events_url: `${process.env.PUBLIC_BASE_URL}/charges/${charge.chargeId}/events`,
       //   expires_at: expiresAt.toISOString(),
       // });
-      res.status(200).json({ address, charge_id: chargeId });
+      res.status(200).json({ address, charge_id: chargeId, paymentUrl });
     } catch (error) {
       console.log(error);
     }
@@ -316,128 +317,28 @@ app.get("/charges/:id/qr.png", async (req, res) => {
 });
 
 app.get("/checkout/:id", async (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "checkout.html"));
+  const { id } = req.params;
+  const charge = await prisma.charge.findFirst({
+    where: { chargeId: id },
+    select: { chargeId: true, expiresAt: true },
+  });
 
-  // <html>
-  // <head>
-  // <meta charset="utf-8"/>
-  // <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  // <title>Pay with sBTC</title>
-  // <style>
-  //   :root{--bd:#e5e7eb;--muted:#6b7280;--ok:#0f766e;--warn:#b45309;--err:#b91c1c;}
-  //   body{font-family:system-ui, -apple-system, Segoe UI, Roboto; background:#fafafa; padding:24px;}
-  //   .wrap{max-width:560px;margin:0 auto;}
-  //   .card{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-  //   .row{display:flex;gap:16px;align-items:center}
-  //   .qr{width:160px;height:160px;border:1px solid var(--bd);border-radius:10px;display:flex;align-items:center;justify-content:center}
-  //   .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
-  //   .value{font-weight:700;font-size:18px}
-  //   code{background:#f3f4f6;padding:6px 8px;border-radius:8px;display:block;overflow:auto}
-  //   .actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
-  //   button,.btn{border:1px solid var(--bd);background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer}
-  //   .status{margin-top:12px;font-weight:700}
-  //   .muted{color:var(--muted)} .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
-  // </style>
-  // </head>
-  // <body>
-  // <div class="wrap">
-  //   <div class="card">
-  //     <h2>Complete your sBTC payment</h2>
-  //     <div class="row">
-  //       <div class="qr"><img id="qr" src="/charges/${
-  //         c.chargeId
-  //       }/qr.png" width="150" height="150" alt="QR"/></div>
-  //       <div style="flex:1">
-  //         <div class="label">Amount</div>
-  //         <div class="value"><span id="amt">—</span> sBTC</div>
-  //         <div style="height:8px"></div>
-  //         <div class="label">Send to</div>
-  //         <code id="addr">—</code>
-  //         <div class="actions">
-  //           <button id="copyAddr">Copy address</button>
-  //           <button id="copyAmt">Copy amount</button>
-  //           <a class="btn" id="cancel" href="${c.cancel_url ?? "#"}">Cancel</a>
-  //         </div>
-  //         <div id="timer" class="muted">Expires in —:—</div>
-  //       </div>
-  //     </div>
-  //     <div id="status" class="status">Status: ${c.status}</div>
-  //     <div id="hint" class="muted">Waiting for payment…</div>
-  //     <small class="muted">Keep this tab open. It updates automatically.</small>
-  //   </div>
-  // </div>
+  if (!charge || !charge.expiresAt) {
+    return res.status(404).send("No such charge exists");
+  }
 
-  // <script>
-  //   const chargeId = ${JSON.stringify(c.chargeId)};
-  //   const successUrl = ${JSON.stringify(c.success_url || "")};
-  //   const addrEl = document.getElementById("addr");
-  //   const amtEl  = document.getElementById("amt");
-  //   const stEl   = document.getElementById("status");
-  //   const hintEl = document.getElementById("hint");
-  //   const timerEl= document.getElementById("timer");
+  const expired = Date.now() >= new Date(charge.expiresAt).getTime();
+  res.set("Cache-Control", "no-store");
 
-  //   document.getElementById("copyAddr").onclick = () => navigator.clipboard.writeText(addrEl.textContent.trim());
-  //   document.getElementById("copyAmt").onclick  = () => navigator.clipboard.writeText(amtEl.textContent.trim());
+  if (expired) {
+    return res
+      .status(410)
+      .sendFile(path.join(__dirname, "public", "expired.html"));
+  }
 
-  //   function fmt(v){ try { return (Number(v)/1e8).toFixed(8).replace(/0+$/,'').replace(/\\.$/,''); } catch { return String(v); } }
-
-  //   let lastStatus = ${JSON.stringify(c.status)};
-
-  //   function render(c){
-  //     if (c.address) addrEl.textContent = c.address;
-  //     if (c.amount != null) amtEl.textContent = fmt(c.amount);
-  //     stEl.textContent = "Status: " + c.status;
-
-  //     const secs = Math.max(0, Number(c.remainingSec || 0));
-  //     const mm = String(Math.floor(secs/60)).padStart(2,'0');
-  //     const ss = String(secs%60).padStart(2,'0');
-  //     timerEl.textContent = "Expires in " + mm + ":" + ss;
-
-  //     if (c.status === "PENDING") { hintEl.textContent="Waiting for payment…"; hintEl.className="muted"; }
-  //     else if (c.status === "DETECTED") { hintEl.textContent="Payment detected. Finalizing…"; hintEl.className="warn"; }
-  //     else if (c.status === "CONFIRMED") {
-  //       hintEl.textContent="Payment successful ✓"; hintEl.className="ok";
-  //       if (lastStatus !== "CONFIRMED" && successUrl) {
-  //         setTimeout(() => {
-  //           const u = new URL(successUrl);
-  //           u.searchParams.set("charge_id", c.chargeId);
-  //           if (c.txid) u.searchParams.set("txid", c.txid);
-  //           u.searchParams.set("status", "CONFIRMED");
-  //           location.href = u.toString();
-  //         }, 1200);
-  //       }
-  //     } else if (c.status === "UNDERPAID") { hintEl.textContent="Amount too low. Contact the merchant."; hintEl.className="err"; }
-  //     else if (c.status === "EXPIRED" || secs===0) { hintEl.textContent="Link expired. Return to the store."; hintEl.className="err"; }
-  //     lastStatus = c.status;
-  //   }
-
-  //   // 1) Open SSE stream
-  //   const es = new EventSource("/charges/" + chargeId + "/events");
-
-  //   es.addEventListener("charge.updated", (e) => {
-  //     try { render(JSON.parse(e.data)); } catch (_) {}
-  //   });
-
-  //   es.addEventListener("charge.error", (e) => {
-  //     hintEl.textContent = "Error: " + e.data;
-  //     hintEl.className = "err";
-  //   });
-
-  //   // 2) Fallback to polling if SSE fails (network, proxy)
-  //   es.onerror = () => {
-  //     es.close();
-  //     setInterval(async () => {
-  //       try {
-  //         const r = await fetch("/charges/" + chargeId, { cache: "no-store" });
-  //         if (r.ok) render(await r.json());
-  //       } catch {}
-  //     }, 5000);
-  //   };
-  // </script>
-  // </body>
-  // </html>`);
+  // Not expired → show checkout page
+  return res.sendFile(path.join(__dirname, "public", "checkout.html"));
 });
-
 // POST /charges/:id/cancel  — only if status === PENDING
 // POST /charges/:id/cancel with debugging
 app.post("/charges/:id/cancel", async (req, res) => {
@@ -515,19 +416,9 @@ app.post("/charges/:id/cancel", async (req, res) => {
     `✅ Charge cancelled successfully. New status: ${updated?.status}`
   );
 
-  // emit SSE update
-  const payload = toChargeEvent({
-    ...updated!,
-    amount:
-      typeof updated!.amount === "bigint"
-        ? updated!.amount.toString()
-        : (updated as any).amount,
-  } as any);
-  payload.status = "CANCELLED";
   console.log(`📡 Emitting SSE event for charge: ${id}`);
-  console.log(`📡 SSE payload:`, payload);
 
-  eventBus.emit(chargeTopic(id), payload);
+  eventBus.emit(chargeTopic(id), toChargeEvent(updated));
 
   return res.json({ ok: true, status: "CANCELLED" });
 });

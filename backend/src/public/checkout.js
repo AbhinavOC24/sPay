@@ -1,4 +1,43 @@
 (function () {
+  let countdownId = null;
+  let hardExpAtMs = 0;
+
+  function expireNow() {
+    setStatus("EXPIRED");
+    if (hintEl) {
+      hintEl.textContent = "Link expired. Return to the store.";
+      hintEl.className = "err";
+    }
+    if (cancelBtn) cancelBtn.disabled = true;
+  }
+
+  function startCountdownFrom(meta) {
+    if (meta.expiresAt) hardExpAtMs = new Date(meta.expiresAt).getTime();
+    else if (typeof meta.remainingSec === "number")
+      hardExpAtMs = Date.now() + meta.remainingSec * 1000;
+    else hardExpAtMs = 0;
+
+    if (countdownId) clearInterval(countdownId);
+    if (!hardExpAtMs) return;
+
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((hardExpAtMs - Date.now()) / 1000));
+      const mm = String(Math.floor(left / 60)).padStart(2, "0");
+      const ss = String(left % 60).padStart(2, "0");
+      if (timerEl) timerEl.textContent = "Expires in " + mm + ":" + ss;
+
+      if (
+        left <= 0 &&
+        (lastStatus === "PENDING" || lastStatus === "DETECTED")
+      ) {
+        clearInterval(countdownId);
+        expireNow();
+      }
+    };
+    tick();
+    countdownId = setInterval(tick, 1000);
+  }
+
   console.log("🚀 Checkout script starting...");
 
   const chargeId = location.pathname.split("/").pop();
@@ -98,7 +137,11 @@
     const mm = String(Math.floor(secs / 60)).padStart(2, "0");
     const ss = String(secs % 60).padStart(2, "0");
     if (timerEl) timerEl.textContent = "Expires in " + mm + ":" + ss;
-
+    startCountdownFrom(c);
+    if (c.status === "EXPIRED") {
+      expireNow();
+      return;
+    }
     if (hintEl) {
       if (c.status === "PENDING") {
         hintEl.textContent = "Waiting for payment…";
@@ -106,6 +149,9 @@
       } else if (c.status === "DETECTED") {
         hintEl.textContent = "Payment detected. Finalizing…";
         hintEl.className = "warn";
+      } else if (c.status === "EXPIRED") {
+        expireNow();
+        return;
       } else if (c.status === "CONFIRMED") {
         hintEl.textContent = "Payment successful ✓";
         hintEl.className = "ok";
@@ -140,12 +186,20 @@
   // static setup
   if (qrEl) qrEl.src = `/charges/${chargeId}/qr.png`;
   if (copyAddr) {
-    copyAddr.onclick = () =>
-      navigator.clipboard.writeText(addrEl.textContent.trim());
+    copyAddr.onclick = async () => {
+      await navigator.clipboard.writeText(addrEl.textContent.trim());
+      copyAddr.textContent = "Copied!";
+
+      setTimeout(() => (copyAddr.textContent = "Copy Address"), 1200);
+    };
   }
   if (copyAmt) {
-    copyAmt.onclick = () =>
+    copyAmt.onclick = () => {
       navigator.clipboard.writeText(amtEl.textContent.trim());
+      copyAmt.textContent = "Copied!";
+
+      setTimeout(() => (copyAmt.textContent = "Copy Amount"), 1200);
+    };
   }
 
   // Cancel button handler

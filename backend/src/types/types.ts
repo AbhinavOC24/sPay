@@ -25,6 +25,7 @@ export type InternalStatus =
   | "PAYOUT_CONFIRMED"
   | "COMPLETED"
   | "EXPIRED"
+  | "CANCELLED"
   | "FAILED";
 
 export type PublicStatus =
@@ -32,6 +33,7 @@ export type PublicStatus =
   | "CONFIRMED"
   | "UNDERPAID"
   | "EXPIRED"
+  | "CANCELLED"
   | "FAILED"; // optional to surface
 
 export function toPublicStatus(s: InternalStatus): PublicStatus {
@@ -47,6 +49,8 @@ export function toPublicStatus(s: InternalStatus): PublicStatus {
       return "EXPIRED";
     case "FAILED":
       return "FAILED";
+    case "CANCELLED":
+      return "CANCELLED";
   }
 }
 
