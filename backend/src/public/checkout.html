@@ -14,14 +14,12 @@
             <div class="dot"></div>
             <h1 id="title">Complete your sBTC payment</h1>
           </div>
-          <!-- Your JS updates #status text + class (muted|warn|ok|err) -->
           <div id="status" class="status muted">Status: —</div>
         </header>
 
         <section class="card__body">
           <div class="pay">
             <div class="qr">
-              <!-- ID kept the same -->
               <img id="qr" width="180" height="180" alt="Payment QR code" />
               <small class="muted qr__hint">Scan with your Stacks wallet</small>
             </div>
@@ -42,12 +40,10 @@
 
               <div class="field">
                 <div class="label">Send to</div>
-                <!-- ID kept the same -->
                 <code id="addr" class="addr">—</code>
               </div>
 
               <div class="actions">
-                <!-- IDs kept the same -->
                 <button id="copyAddr" type="button" class="btn ghost">
                   Copy address
                 </button>
@@ -59,12 +55,10 @@
                 </button>
               </div>
 
-              <!-- ID kept the same; JS updates text -->
               <div id="timer" class="muted timer">Expires in —:—</div>
             </div>
           </div>
 
-          <!-- ID kept the same; JS updates content + classes -->
           <div id="hint" class="hint muted">Waiting for payment…</div>
           <small class="muted subnote"
             >Keep this tab open. It updates automatically.</small
@@ -78,9 +72,16 @@
       </main>
     </div>
 
+    <div style="margin-top: 1rem; text-align: center">
+      <small class="muted">
+        If you face any issues, share this reference ID with the merchant:
+        <code id="chargeIdRef" style="font-size: 0.85rem">—</code>
+      </small>
+    </div>
+
     <!-- axios via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <!-- your logic (unchanged) -->
+    <!-- your logic -->
     <script src="/static/checkout.js"></script>
   </body>
 </html>

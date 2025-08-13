@@ -59,3 +59,13 @@ export async function requireMerchant(
 
   return res.status(401).json({ error: "missing_auth" });
 }
+export function checkDashBoardAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.session.authenticated || !req.session.merchantId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+}

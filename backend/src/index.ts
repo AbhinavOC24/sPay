@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { Request, Response } from "express";
 import { generateWallet, getStxAddress } from "@stacks/wallet-sdk";
 import { v4 as uuidv4 } from "uuid";
-import { paymentSchema } from "./zod/zodCheck";
+import { merchantLoginSchema, paymentSchema } from "./zod/zodCheck";
 import { generateSecretKey } from "@stacks/wallet-sdk";
 import prisma from "./db";
 import QRCode from "qrcode";
@@ -22,7 +22,7 @@ import {
   retryFailedWebhooks,
   startChargeProcessor,
 } from "./utils/payment/chargeProcessor";
-import { requireMerchant } from "./middleware/auth";
+import { checkDashBoardAuth, requireMerchant } from "./middleware/auth";
 
 import { transferStx } from "./utils/blockchain/transferStx";
 import { deriveHotWallet } from "./utils/blockchain/deriveHotWallet";
@@ -31,10 +31,25 @@ import toChargeEvent from "./utils/payment/publicPayloadBuilder";
 import { chargeTopic, eventBus } from "./utils/eventBus";
 import { CANCELLED } from "dns";
 import fetchUsdExchangeRate from "./utils/blockchain/fetchUsdExchangeRate";
+import session from "express-session";
 
 const app = express();
 app.use(express.json());
 app.use("/static", express.static(path.join(__dirname, "public")));
+
+app.use(
+  session({
+    secret: "super-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    }, // secure: true in prod (HTTPS)
+  })
+);
 
 dotenv.config();
 
@@ -153,7 +168,7 @@ app.post(
 
 // app.post("/api/merchants/signup", async (req: Request, res: Response) => {});
 
-app.put("/api/merchants/config", requireMerchant, async (req, res) => {
+app.put("/api/merchants/config", checkDashBoardAuth, async (req, res) => {
   const { payoutStxAddress, webhookUrl, webhookSecret } = req.body;
   const updated = await prisma.merchant.update({
     where: { id: (req as any).merchant.id },
@@ -163,20 +178,33 @@ app.put("/api/merchants/config", requireMerchant, async (req, res) => {
   res.json(updated);
 });
 
+import { merchantSignupSchema } from "./zod/zodCheck";
+
 app.post("/api/merchants/signup", async (req: Request, res: Response) => {
   try {
-    const { name, email, password } = req.body ?? {};
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "name, email, password required" });
+    const parsed = merchantSignupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: parsed.error.flatten().fieldErrors });
     }
 
-    const exists = await prisma.merchant.findUnique({ where: { email } });
-    if (exists) return res.status(409).json({ error: "Email already in use" });
+    const { name, email, password } = parsed.data;
 
+    // Check if merchant already exists
+    const exists = await prisma.merchant.findUnique({ where: { email } });
+    if (exists) {
+      return res.status(409).json({ error: "Email already in use" });
+    }
+
+    // Hash password
     const hash = await bcrypt.hash(password, 10);
+
+    // Generate API credentials
     const apiKey = genApiKey();
     const apiSecret = genApiSecret();
 
+    // Create merchant
     const merchant = await prisma.merchant.create({
       data: {
         name,
@@ -195,23 +223,130 @@ app.post("/api/merchants/signup", async (req: Request, res: Response) => {
       },
     });
 
-    const token = jwt.sign({ sub: merchant.id }, process.env.JWT_SECRET!, {
-      expiresIn: "2h",
-    });
-    res.cookie("session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // set true behind HTTPS
-      domain: process.env.COOKIE_DOMAIN || "localhost",
-      maxAge: 2 * 60 * 60 * 1000,
-    });
+    // Set session
+    req.session.authenticated = true;
+    req.session.merchantId = merchant.id;
 
-    return res.status(201).json(merchant); // includes apiKey + apiSecret
-  } catch (e) {
-    console.error(e);
+    return res.status(201).json({
+      message: "Merchant account created successfully",
+      merchant,
+    });
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "signup_failed" });
   }
 });
+
+app.post("/api/merchants/login", async (req: Request, res: Response) => {
+  try {
+    const parsed = merchantLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const { email, password } = parsed.data;
+
+    const merchant = await prisma.merchant.findUnique({ where: { email } });
+    if (!merchant) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, merchant.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // Set session
+    req.session.authenticated = true;
+    req.session.merchantId = merchant.id;
+
+    return res.json({
+      message: "Login successful",
+      merchant: {
+        id: merchant.id,
+        name: merchant.name,
+        email: merchant.email,
+        apiKey: merchant.apiKey,
+        apiSecret: merchant.apiSecret,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "login_failed" });
+  }
+});
+
+app.post("/api/merchants/logout", (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("Error destroying session:", err);
+      return res.status(500).json({ error: "logout_failed" });
+    }
+    res.clearCookie("connect.sid"); // default cookie name for express-session
+    return res.json({ message: "Logged out successfully" });
+  });
+});
+
+app.get(
+  "/api/merchants/me",
+  checkDashBoardAuth,
+  async (req: Request, res: Response) => {
+    const merchant = await prisma.merchant.findUnique({
+      where: { id: req.session.merchantId as string },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        apiKey: true,
+        apiSecret: true,
+      },
+    });
+    res.json(merchant);
+  }
+);
+app.get(
+  "/api/merchants/charges",
+  checkDashBoardAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const charges = await prisma.charge.findMany({
+        where: { merchantid: req.session.merchantId as string },
+        orderBy: { createdAt: "desc" },
+        select: {
+          chargeId: true,
+          address: true,
+          amount: true,
+          usdRate: true,
+          status: true,
+          createdAt: true,
+          paidAt: true,
+          payoutTxId: true,
+          failureReason: true,
+        },
+      });
+
+      // Convert BigInt amount to number and add USD value
+      const formatted = charges.map((c) => ({
+        chargeId: c.chargeId,
+        address: c.address,
+        amountSbtc: Number(c.amount) / 100_000_000, // sBTC
+        amountUsd: (Number(c.amount) / 100_000_000) * (c.usdRate || 1),
+        status: c.status,
+        createdAt: c.createdAt,
+        paidAt: c.paidAt,
+        payoutTxId: c.payoutTxId,
+        failureReason: c.failureReason,
+      }));
+
+      res.json({ charges: formatted });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "fetch_charges_failed" });
+    }
+  }
+);
 
 // ---- snapshot endpoint (used by checkout + fallback) ----
 app.get("/charges/:id", async (req, res) => {

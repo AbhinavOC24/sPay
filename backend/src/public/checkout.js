@@ -130,7 +130,10 @@
     if (amtEl) amtEl.textContent = fmt(c.amount);
     const usdRow = document.getElementById("usdRow");
     const usdEl = document.getElementById("usd");
-
+    const chargeIdRefEl = document.getElementById("chargeIdRef");
+    if (chargeIdRefEl) {
+      chargeIdRefEl.textContent = chargeId;
+    }
     if (c.usdRate !== undefined && usdRow && usdEl) {
       usdEl.textContent = Number(c.usdRate).toFixed(2);
       usdRow.style.display = "inline-flex";
