@@ -40,9 +40,9 @@ app.post("/webhook", (req, res) => {
   }
 
   // Optional replay window (10 min)
-  // if (Math.abs(Date.now() - Date.parse(ts)) > 10 * 60 * 1000) {
-  //   return res.status(400).send("stale");
-  // }
+  if (Math.abs(Date.now() - Date.parse(ts)) > 10 * 60 * 1000) {
+    return res.status(400).send("stale");
+  }
 
   if (processed.has(eventId)) {
     console.log(`📩 duplicate event ${eventId} ignored`);
