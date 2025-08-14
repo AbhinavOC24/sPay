@@ -36,6 +36,11 @@ export async function processPendingCharges() {
     throw error;
   } finally {
     isProcessing = false;
+    try {
+      await prisma.$disconnect();
+    } catch (e) {
+      console.warn("Could not disconnect Prisma:", e);
+    }
   }
 }
 
@@ -593,6 +598,11 @@ export function startChargeProcessor() {
         `💥 Poller error (failure #${consecutiveFailures}):`,
         error
       );
+      if (error?.code === "P1001" && consecutiveFailures >= 3) {
+        console.log("🔴 Multiple DB connection failures, waiting longer...");
+        setTimeout(pollWithRetry, 120000); // Wait 2 minutes instead
+        return;
+      }
 
       if (consecutiveFailures >= maxFailures) {
         console.error(
