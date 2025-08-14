@@ -15,12 +15,12 @@ export async function deliverChargeConfirmedWebhook({
     return;
   }
   // Stable per logical event (do NOT change across retries)
-  const eventId = `${payload.chargeId}:payout_confirmed`;
+  const eventId = `${payload.chargeId}:payout_completed`;
   const nowIso = new Date().toISOString();
 
   // Generate HMAC signature
   const eventEnvelope = {
-    type: "charge.confirmed",
+    type: "charge.completed",
     eventId,
     occurredAt: nowIso,
     data: payload,

@@ -1,14 +1,51 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+"use client";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useEffect } from "react";
+import { useMerchantStore } from "@/store/useMerchantStore";
+import axios from "axios";
 
+import { useRouter } from "next/navigation";
 export default function HomePage() {
+  const { fetchMerchant } = useMerchantStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkMerchant = async () => {
+      try {
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/merchants/me`,
+          { withCredentials: true }
+        );
+
+        if (res.data && res.data.id) {
+          router.push("/dashboard");
+        }
+      } catch (err) {
+        console.log("No active merchant session");
+      }
+    };
+
+    checkMerchant();
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">sBTC Merchant Portal</CardTitle>
-          <CardDescription>Secure Bitcoin payments for your business</CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            sBTC Merchant Portal
+          </CardTitle>
+          <CardDescription>
+            Secure Bitcoin payments for your business
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button asChild className="w-full">
@@ -20,5 +57,5 @@ export default function HomePage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

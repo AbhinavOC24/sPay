@@ -49,6 +49,8 @@ async function processNewPayments() {
   const pendingCharges = await prisma.charge.findMany({
     where: { status: "PENDING" },
     include: { merchant: true },
+    orderBy: { lastProcessedAt: "asc" }, // or createdAt
+    take: 10,
   });
 
   console.log(`📋 Found ${pendingCharges.length} pending charges to check`);
@@ -83,12 +85,12 @@ async function processNewPayments() {
               `Missing merchant payout address for charge ${updated.chargeId}`
             );
           }
-          try {
-            await publishChargeUpdate(charge.chargeId);
-          } catch (e) {
-            console.error("Emit/public update failed for", charge.chargeId, e);
-          }
         });
+        try {
+          await publishChargeUpdate(charge.chargeId);
+        } catch (e) {
+          console.error("Emit/public update failed for", charge.chargeId, e);
+        }
       }
     } catch (error) {
       console.error(
@@ -105,78 +107,12 @@ async function processNewPayments() {
 }
 
 // Step 2: Process confirmed charges and initiate payouts
-// async function processPayoutInitiated() {
-//   const confirmedCharges = await prisma.charge.findMany({
-//     where: { status: "CONFIRMED" },
-//     include: { merchant: true },
-//   });
-
-//   console.log(
-//     `🔄 Found ${confirmedCharges.length} confirmed charges ready for payout`
-//   );
-
-//   for (const charge of confirmedCharges) {
-//     try {
-//       await prisma.$transaction(async (tx) => {
-//         // Mark as payout initiated to prevent double processing
-//         const updated = await tx.charge.update({
-//           where: {
-//             id: charge.id,
-//             status: "CONFIRMED", // Ensure status hasn't changed
-//           },
-//           data: {
-//             status: "PAYOUT_INITIATED",
-//             lastProcessedAt: new Date(),
-//           },
-//           include: { merchant: true },
-//         });
-
-//         // If update affected 0 rows, another process got it
-//         if (!updated) {
-//           console.log(`⚠️ Charge ${charge.chargeId} already being processed`);
-//           return;
-//         }
-
-//         console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
-
-//         // Initiate the SBTC transfer
-//         const { txid } = await transferSbtc(
-//           updated.privKey!,
-//           updated.address,
-//           updated.merchant!.payoutStxAddress!,
-//           updated.amount
-//         );
-
-//         // Store the transaction ID
-//         await tx.charge.update({
-//           where: { id: charge.id },
-//           data: {
-//             payoutTxId: txid,
-//             lastProcessedAt: new Date(),
-//           },
-//         });
-//         await publishChargeUpdate(charge.chargeId);
-
-//         console.log(
-//           `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
-//         );
-//       });
-//     } catch (error) {
-//       console.error(
-//         `❌ Error initiating payout for charge ${charge.chargeId}:`,
-//         error
-//       );
-//       await markChargeFailed(
-//         charge.chargeId,
-//         `Payout initiation failed: ${error}`
-//       );
-//     }
-//   }
-// }
 async function processPayoutInitiated() {
   const confirmedCharges = await prisma.charge.findMany({
     where: { status: "CONFIRMED" },
     include: { merchant: true },
+    orderBy: { lastProcessedAt: "asc" }, // or createdAt
+    take: 10,
   });
 
   console.log(
@@ -186,7 +122,7 @@ async function processPayoutInitiated() {
   for (const charge of confirmedCharges) {
     try {
       // 1) Atomically claim the job: CONFIRMED -> PAYOUT_INITIATED
-      const claim = await prisma.charge.updateMany({
+      const claim = await prisma.charge.update({
         where: { id: charge.id, status: "CONFIRMED" },
         data: {
           status: "PAYOUT_INITIATED",
@@ -194,7 +130,7 @@ async function processPayoutInitiated() {
         },
       });
 
-      if (claim.count === 0) {
+      if (!claim) {
         // someone else took it or status changed
         console.log(
           `⚠️ Charge ${charge.chargeId} not claimed (status changed)`
@@ -270,6 +206,8 @@ async function processPayoutConfirmed() {
       payoutTxId: { not: null },
     },
     include: { merchant: true },
+    orderBy: { lastProcessedAt: "asc" },
+    take: 10,
   });
 
   console.log(
@@ -396,13 +334,23 @@ async function processPayoutConfirmed() {
 
 // Retry failed webhooks for payout confirmed charges but not completed ie merchant webhook failed
 export async function retryFailedWebhooks() {
+  // const payoutConfirmedCharges = await prisma.charge.findMany({
+  //   where: {
+  //     status: "PAYOUT_CONFIRMED",
+  //     webhookLastStatus: "FAILED",
+  //     webhookAttempts: { lt: 10 }, // Max 5 attempts
+  //   },
+  //   include: { merchant: true },
+  // });
   const payoutConfirmedCharges = await prisma.charge.findMany({
     where: {
       status: "PAYOUT_CONFIRMED",
       webhookLastStatus: "FAILED",
-      webhookAttempts: { lt: 10 }, // Max 5 attempts
+      webhookAttempts: { lt: 10 },
     },
     include: { merchant: true },
+    orderBy: { lastProcessedAt: "asc" }, // or createdAt
+    take: 10, // process in small chunks
   });
   console.log(payoutConfirmedCharges);
   console.log(

@@ -65,7 +65,9 @@ export function checkDashBoardAuth(
   next: NextFunction
 ) {
   if (!req.session.authenticated || !req.session.merchantId) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return res
+      .status(401)
+      .json({ error: "Unauthorized", authenticated: false });
   }
   next();
 }
