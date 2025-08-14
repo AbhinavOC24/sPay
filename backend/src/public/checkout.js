@@ -242,7 +242,9 @@
 
         // Redirect immediately if cancelUrl is set
         if (cancelUrl) {
-          window.location.href = cancelUrl;
+          setTimeout(() => {
+            window.location.href = cancelUrl;
+          }, 7000); // wait 5 seconds
         } else {
           console.warn("⚠️ No cancelUrl set; staying on page");
         }
