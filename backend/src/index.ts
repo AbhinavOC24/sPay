@@ -8,9 +8,10 @@ import { generateSecretKey } from "@stacks/wallet-sdk";
 import prisma from "./db";
 import QRCode from "qrcode";
 import path from "path";
+import cors from "cors";
+import { merchantSignupSchema } from "./zod/zodCheck";
 
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 
 import { genApiKey, genApiSecret } from "./utils/keys"; // you already have this
 (BigInt.prototype as any).toJSON = function () {
@@ -36,6 +37,7 @@ import session from "express-session";
 const app = express();
 app.use(express.json());
 app.use("/static", express.static(path.join(__dirname, "public")));
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 
 app.use(
   session({
@@ -170,15 +172,31 @@ app.post(
 
 app.put("/api/merchants/config", checkDashBoardAuth, async (req, res) => {
   const { payoutStxAddress, webhookUrl, webhookSecret } = req.body;
-  const updated = await prisma.merchant.update({
-    where: { id: (req as any).merchant.id },
-    data: { payoutStxAddress, webhookUrl, webhookSecret },
-    select: { id: true, payoutStxAddress: true, webhookUrl: true },
-  });
-  res.json(updated);
-});
 
-import { merchantSignupSchema } from "./zod/zodCheck";
+  // Build data object with only provided fields
+  const data: Record<string, any> = {};
+  if (payoutStxAddress !== undefined) data.payoutStxAddress = payoutStxAddress;
+  if (webhookUrl !== undefined) data.webhookUrl = webhookUrl;
+  if (webhookSecret !== undefined) data.webhookSecret = webhookSecret;
+
+  try {
+    const updated = await prisma.merchant.update({
+      where: { id: req.session.merchantId as string },
+      data,
+      select: {
+        id: true,
+        payoutStxAddress: true,
+        webhookUrl: true,
+        webhookSecret: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "update_failed" });
+  }
+});
 
 app.post("/api/merchants/signup", async (req: Request, res: Response) => {
   try {
@@ -220,6 +238,9 @@ app.post("/api/merchants/signup", async (req: Request, res: Response) => {
         apiKey: true,
         apiSecret: true,
         createdAt: true,
+        payoutStxAddress: true,
+        webhookSecret: true,
+        webhookUrl: true,
       },
     });
 
@@ -270,6 +291,9 @@ app.post("/api/merchants/login", async (req: Request, res: Response) => {
         email: merchant.email,
         apiKey: merchant.apiKey,
         apiSecret: merchant.apiSecret,
+        payoutStxAddress: merchant.payoutStxAddress,
+        webhookSecret: merchant.webhookSecret,
+        webhookUrl: merchant.webhookUrl,
       },
     });
   } catch (err) {
@@ -301,6 +325,9 @@ app.get(
         email: true,
         apiKey: true,
         apiSecret: true,
+        payoutStxAddress: true,
+        webhookSecret: true,
+        webhookUrl: true,
       },
     });
     res.json(merchant);
@@ -316,7 +343,6 @@ app.get(
         orderBy: { createdAt: "desc" },
         select: {
           chargeId: true,
-          address: true,
           amount: true,
           usdRate: true,
           status: true,
@@ -330,7 +356,6 @@ app.get(
       // Convert BigInt amount to number and add USD value
       const formatted = charges.map((c) => ({
         chargeId: c.chargeId,
-        address: c.address,
         amountSbtc: Number(c.amount) / 100_000_000, // sBTC
         amountUsd: (Number(c.amount) / 100_000_000) * (c.usdRate || 1),
         status: c.status,
