@@ -426,7 +426,7 @@ async function processPayoutConfirmed() {
             !!updatedCharge.merchant?.webhookUrl &&
             !!updatedCharge.merchant?.webhookSecret;
 
-          if (hasWebhook && updatedCharge.isManual) {
+          if (hasWebhook && !updatedCharge.isManual) {
             try {
               const ok = await deliverChargeConfirmedWebhook({
                 payload: {
