@@ -48,7 +48,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     }, // secure: true in prod (HTTPS)
   })
 );
@@ -118,6 +118,7 @@ app.post(
       const chargeId = uuidv4();
       const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
       const rateUsd = await fetchUsdExchangeRate();
+
       const amountUsd = Number(parsed.data.amount) * rateUsd;
       const { stxPrivateKey, stxAddress } = await deriveHotWallet(
         process.env.mnemonicString as string
@@ -135,6 +136,7 @@ app.post(
       // const webhookSecret = webhookUrl
       //   ? crypto.randomBytes(32).toString("hex")
       //   : null;
+
       const TTL_MIN = 15;
       const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
       const charge = await prisma.charge.create({
@@ -148,6 +150,7 @@ app.post(
           merchantid: merchant.id,
           idempotencyKey: key,
           usdRate: amountUsd,
+          isManual: parsed.data.manual ?? false,
           expiresAt,
         },
       });

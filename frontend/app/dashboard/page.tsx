@@ -14,17 +14,33 @@ import {
 } from "@/components/ui/select";
 import { Settings, Filter } from "lucide-react";
 import { useMerchantStore } from "@/store/useMerchantStore";
+import NewPaymentModal from "@/components/ui/newPaymentModal";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { merchant, charges, fetchMerchant, fetchCharges, logout } =
-    useMerchantStore();
+  const {
+    merchant,
+    charges,
+    fetchMerchant,
+    fetchCharges,
+    logout,
+    updateNewPaymentModalStatus,
+  } = useMerchantStore();
 
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    fetchMerchant().then(() => fetchCharges());
-  }, [fetchMerchant, fetchCharges]);
+    const init = async () => {
+      try {
+        await fetchMerchant();
+        await fetchCharges();
+      } catch (err) {
+        console.error("❌ Merchant fetch failed:", err);
+        router.push("/"); // kick back to home
+      }
+    };
+    init();
+  }, [fetchMerchant, fetchCharges, router]);
 
   const handleLogout = async () => {
     await logout();
@@ -205,6 +221,12 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+        <div
+          className="bg-[#22c55e]  rounded-xl px-4 py-2 w-fit mb-4 cursor-pointer"
+          onClick={() => updateNewPaymentModalStatus(true)}
+        >
+          Create a Payment
+        </div>
 
         {/* Transactions Table */}
         <Card className="bg-[#12161b] border-gray-800">
@@ -231,6 +253,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </CardHeader>
+
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -256,7 +279,7 @@ export default function DashboardPage() {
                       key={t.chargeId}
                       className="border-b border-gray-800 hover:bg-[#1a1f26]"
                     >
-                      <td className="py-3 px-4 text-[#e6edf3] font-mono text-sm">
+                      <td className="py-3 px-4 text-[#e6edf3]  text-sm">
                         {t.chargeId}
                       </td>
                       <td className="py-3 px-4 text-[#e6edf3]">
@@ -277,6 +300,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </main>
+      <NewPaymentModal />
     </div>
   );
 }

@@ -219,6 +219,8 @@ async function processPayoutConfirmed() {
       if (!charge.payoutTxId) continue;
 
       // ✅ Non-blocking transaction status check
+
+      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isSuccess) {
@@ -484,6 +486,7 @@ export async function recoverStuckCharges() {
 
     if (charge.payoutTxId) {
       // Check the transaction status one more time
+      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isFailed) {

@@ -30,12 +30,13 @@ interface MerchantStore {
   charges: Charge[];
   isLoading: boolean;
   error: string | null;
-
+  newPaymentModalStatus: boolean;
   fetchMerchant: () => Promise<void>;
   fetchCharges: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateNewPaymentModalStatus: (status: boolean) => void;
   updateConfig: (
     payoutStxAddress: string,
     webhookUrl: string,
@@ -48,7 +49,9 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
   charges: [],
   isLoading: false,
   error: null,
-
+  newPaymentModalStatus: false,
+  updateNewPaymentModalStatus: (status) =>
+    set({ newPaymentModalStatus: status }),
   fetchMerchant: async () => {
     set({ isLoading: true, error: null });
     try {
