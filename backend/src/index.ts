@@ -136,7 +136,7 @@ app.post(
       // const webhookSecret = webhookUrl
       //   ? crypto.randomBytes(32).toString("hex")
       //   : null;
-
+      const manualCharge = parsed.data.manual ?? false;
       const TTL_MIN = 15;
       const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
       const charge = await prisma.charge.create({
@@ -150,7 +150,7 @@ app.post(
           merchantid: merchant.id,
           idempotencyKey: key,
           usdRate: amountUsd,
-          isManual: parsed.data.manual ?? false,
+          isManual: manualCharge,
           expiresAt,
         },
       });
