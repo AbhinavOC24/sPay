@@ -65,8 +65,9 @@ export async function checkTxStatus(txid: string) {
 //   const end = Date.now() + timeoutMs;
 
 //   while (Date.now() < end) {
+//     console.log("TXID FROM FUNCTION");
 //     const result = await checkTxStatus(txid);
-
+//     console.log(result);
 //     if (result.isSuccess) {
 //       console.log(`✅ TX ${txid} succeeded`);
 //       return result.txData;

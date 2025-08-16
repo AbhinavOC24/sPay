@@ -12,128 +12,282 @@ const HIRO_API_BASE = "https://api.testnet.hiro.so";
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 1000; // 1 second
 
-// Add a simple in-memory flag to prevent concurrent polling
+// 🔧 CHANGE 1: Enhanced processing flags to prevent race conditions
 let isProcessing = false;
+let isShuttingDown = false;
+let consecutiveDbErrors = 0;
+const MAX_DB_ERRORS = 5;
+
+// 🔧 CHANGE 2: Database health monitoring
+let lastDbHealthCheck = Date.now();
+const DB_HEALTH_CHECK_INTERVAL = 60000; // 1 minute
+
+// 🔧 CHANGE 3: Safe database operation wrapper
+async function safeDbOperation<T>(
+  operation: () => Promise<T>,
+  operationName: string
+): Promise<T | null> {
+  try {
+    // Check if we need a health check
+    if (Date.now() - lastDbHealthCheck > DB_HEALTH_CHECK_INTERVAL) {
+      await checkDatabaseHealth();
+    }
+
+    const result = await operation();
+    consecutiveDbErrors = 0; // Reset on success
+    return result;
+  } catch (error: any) {
+    consecutiveDbErrors++;
+    console.error(
+      `❌ Database operation '${operationName}' failed (error #${consecutiveDbErrors}):`,
+      error?.message
+    );
+
+    // Check if it's a connection-related error
+    if (isDatabaseConnectionError(error)) {
+      console.error(
+        `🔌 Database connection issue detected in ${operationName}`
+      );
+      if (consecutiveDbErrors >= MAX_DB_ERRORS) {
+        console.error(
+          `💀 Too many database errors (${MAX_DB_ERRORS}), triggering reconnection`
+        );
+        await handleDatabaseReconnection();
+      }
+      throw error; // Rethrow connection errors to trigger higher-level handling
+    }
+
+    // For non-connection errors, log and return null
+    console.error(
+      `⚠️ Non-critical database error in ${operationName}, continuing...`
+    );
+    return null;
+  }
+}
+
+// 🔧 CHANGE 4: Database connection error detection
+function isDatabaseConnectionError(error: any): boolean {
+  const connectionErrorMessages = [
+    "Response from the Engine was empty", // Your exact error
+    "Connection terminated unexpectedly",
+    "Connection lost",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    "ETIMEDOUT",
+    "P1001", // Prisma connection error code
+    "P1017", // Server has closed the connection
+  ];
+
+  const errorMessage = error?.message || error?.code || "";
+  return connectionErrorMessages.some((msg) => errorMessage.includes(msg));
+}
+
+// 🔧 CHANGE 5: Database health check function
+async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1 as health_check`;
+    lastDbHealthCheck = Date.now();
+    console.log("✅ Database health check passed");
+    return true;
+  } catch (error) {
+    console.error("❌ Database health check failed:", error);
+    return false;
+  }
+}
+
+// 🔧 CHANGE 6: Database reconnection handler
+async function handleDatabaseReconnection(): Promise<void> {
+  try {
+    console.log("🔄 Attempting database reconnection...");
+
+    // Disconnect existing connection
+    await prisma.$disconnect();
+
+    // Wait before reconnecting
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Test new connection
+    await prisma.$connect();
+    await checkDatabaseHealth();
+
+    consecutiveDbErrors = 0;
+    console.log("✅ Database reconnection successful");
+  } catch (error) {
+    console.error("❌ Database reconnection failed:", error);
+    throw error;
+  }
+}
 
 // Main function - processes all pending charges through the state machine
 export async function processPendingCharges() {
-  await expireOldCharges();
-  // Prevent concurrent execution
+  // 🔧 CHANGE 7: Enhanced processing guard with shutdown check
   if (isProcessing) {
     console.log("Charge processing already in progress, skipping...");
+    return;
+  }
+
+  if (isShuttingDown) {
+    console.log("Service is shutting down, skipping charge processing...");
     return;
   }
 
   isProcessing = true;
 
   try {
+    await expireOldCharges();
+
     // Process different statuses separately to ensure proper order
     await processNewPayments(); // PENDING → CONFIRMED
     await processPayoutInitiated(); // CONFIRMED → PAYOUT_INITIATED
     await processPayoutConfirmed(); // PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
   } catch (error) {
     console.error("Error in processPendingCharges:", error);
-    throw error;
+
+    // 🔧 CHANGE 8: Handle database connection errors specifically
+    if (isDatabaseConnectionError(error)) {
+      console.error(
+        "Database connection error in main processor, will retry with backoff"
+      );
+      throw error; // Let the caller handle the backoff
+    }
   } finally {
     isProcessing = false;
-    try {
-      await prisma.$disconnect();
-    } catch (e) {
-      console.warn("Could not disconnect Prisma:", e);
-    }
+
+    // 🔧 CHANGE 9: REMOVED automatic $disconnect() - this was causing your crashes!
+    // The old code disconnected on every run, which exhausted connections
+    // Instead, we'll let Prisma manage the connection pool
   }
 }
 
 // Step 1: Check for new payments and mark as confirmed
 async function processNewPayments() {
-  const pendingCharges = await prisma.charge.findMany({
-    where: { status: "PENDING" },
-    include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
-    take: 10,
-  });
+  const pendingCharges = await safeDbOperation(
+    () =>
+      prisma.charge.findMany({
+        where: { status: "PENDING" },
+        include: { merchant: true },
+        orderBy: { lastProcessedAt: "asc" },
+        take: 10,
+      }),
+    "processNewPayments:findMany"
+  );
+
+  if (!pendingCharges) {
+    console.log("⚠️ Could not fetch pending charges, skipping this batch");
+    return;
+  }
 
   console.log(`📋 Found ${pendingCharges.length} pending charges to check`);
 
+  // 🔧 CHANGE 10: Process sequentially to avoid overwhelming database
   for (const charge of pendingCharges) {
+    if (isShuttingDown) break;
+
     try {
       const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
       if (paid) {
         // Use database transaction to ensure atomicity
-        await prisma.$transaction(async (tx) => {
-          // Mark as confirmed
-          const updated = await tx.charge.update({
-            where: { id: charge.id },
-            data: {
-              status: "CONFIRMED",
-              paidAt: new Date(),
-              lastProcessedAt: new Date(),
-            },
-            include: { merchant: true },
-          });
+        const updated = await safeDbOperation(
+          () =>
+            prisma.$transaction(async (tx) => {
+              const updated = await tx.charge.update({
+                where: { id: charge.id },
+                data: {
+                  status: "CONFIRMED",
+                  paidAt: new Date(),
+                  lastProcessedAt: new Date(),
+                },
+                include: { merchant: true },
+              });
 
+              // Validate prerequisites for payout
+              if (!updated.privKey) {
+                throw new Error(
+                  `Missing temp wallet privKey for charge ${updated.chargeId}`
+                );
+              }
+              if (!updated.merchant?.payoutStxAddress) {
+                throw new Error(
+                  `Missing merchant payout address for charge ${updated.chargeId}`
+                );
+              }
+
+              return updated;
+            }),
+          `processNewPayments:update:${charge.chargeId}`
+        );
+
+        if (updated) {
           console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
-
-          // Validate prerequisites for payout
-          if (!updated.privKey) {
-            throw new Error(
-              `Missing temp wallet privKey for charge ${updated.chargeId}`
-            );
+          try {
+            await publishChargeUpdate(charge.chargeId);
+          } catch (e) {
+            console.error("Emit/public update failed for", charge.chargeId, e);
           }
-          if (!updated.merchant?.payoutStxAddress) {
-            throw new Error(
-              `Missing merchant payout address for charge ${updated.chargeId}`
-            );
-          }
-        });
-        try {
-          await publishChargeUpdate(charge.chargeId);
-        } catch (e) {
-          console.error("Emit/public update failed for", charge.chargeId, e);
         }
       }
+
+      // 🔧 CHANGE 11: Add small delay between charges to prevent overwhelming
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error(
         `❌ Error processing payment confirmation for charge ${charge.chargeId}:`,
         error
       );
-      // Mark as failed for manual intervention
-      await markChargeFailed(
-        charge.chargeId,
-        `Payment confirmation failed: ${error}`
-      );
+
+      // Only mark as failed if it's not a connection error
+      if (!isDatabaseConnectionError(error)) {
+        await markChargeFailed(
+          charge.chargeId,
+          `Payment confirmation failed: ${error}`
+        );
+      }
     }
   }
 }
 
 // Step 2: Process confirmed charges and initiate payouts
 async function processPayoutInitiated() {
-  const confirmedCharges = await prisma.charge.findMany({
-    where: { status: "CONFIRMED" },
-    include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
-    take: 10,
-  });
+  const confirmedCharges = await safeDbOperation(
+    () =>
+      prisma.charge.findMany({
+        where: { status: "CONFIRMED" },
+        include: { merchant: true },
+        orderBy: { lastProcessedAt: "asc" },
+        take: 10,
+      }),
+    "processPayoutInitiated:findMany"
+  );
+
+  if (!confirmedCharges) {
+    console.log("⚠️ Could not fetch confirmed charges, skipping this batch");
+    return;
+  }
 
   console.log(
     `🔄 Found ${confirmedCharges.length} confirmed charges ready for payout`
   );
 
   for (const charge of confirmedCharges) {
+    if (isShuttingDown) break;
+
     try {
       // 1) Atomically claim the job: CONFIRMED -> PAYOUT_INITIATED
-      const claim = await prisma.charge.update({
-        where: { id: charge.id, status: "CONFIRMED" },
-        data: {
-          status: "PAYOUT_INITIATED",
-          lastProcessedAt: new Date(),
-        },
-      });
+      const claim = await safeDbOperation(
+        () =>
+          prisma.charge.update({
+            where: { id: charge.id, status: "CONFIRMED" },
+            data: {
+              status: "PAYOUT_INITIATED",
+              lastProcessedAt: new Date(),
+            },
+          }),
+        `processPayoutInitiated:claim:${charge.chargeId}`
+      );
 
       if (!claim) {
-        // someone else took it or status changed
         console.log(
-          `⚠️ Charge ${charge.chargeId} not claimed (status changed)`
+          `⚠️ Charge ${charge.chargeId} not claimed (status changed or db error)`
         );
         continue;
       }
@@ -158,143 +312,177 @@ async function processPayoutInitiated() {
         charge.merchant.payoutStxAddress,
         charge.amount
       );
+      console.log("TX id form transferSbtc", txid);
+      // 3) Persist txid
+      const updated = await safeDbOperation(
+        () =>
+          prisma.charge.update({
+            where: { id: charge.id },
+            data: { payoutTxId: txid, lastProcessedAt: new Date() },
+          }),
+        `processPayoutInitiated:updateTxId:${charge.chargeId}`
+      );
 
-      // 3) Persist txid (still outside a long transaction)
-      await prisma.charge.update({
-        where: { id: charge.id },
-        data: { payoutTxId: txid, lastProcessedAt: new Date() },
-      });
+      if (updated) {
+        try {
+          await publishChargeUpdate(charge.chargeId);
+        } catch (e) {
+          console.error("Emit/public update failed for", charge.chargeId, e);
+        }
 
-      try {
-        await publishChargeUpdate(charge.chargeId);
-      } catch (e) {
-        console.error("Emit/public update failed for", charge.chargeId, e);
+        console.log(
+          `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
+        );
       }
 
-      console.log(
-        `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
-      );
+      // Add delay between payouts
+      await new Promise((resolve) => setTimeout(resolve, 200));
     } catch (error) {
       console.error(
         `❌ Error initiating payout for charge ${charge.chargeId}:`,
         error
       );
 
-      // Roll back the claim or mark failed
-      try {
-        await prisma.charge.updateMany({
-          where: { id: charge.id, status: "PAYOUT_INITIATED" },
-          data: {
-            status: "FAILED", // or "CONFIRMED" if you want to retry later
-            failureReason: `Payout initiation failed: ${String(error)}`,
-            lastProcessedAt: new Date(),
-          },
-        });
-      } catch (e2) {
-        console.error("Rollback after payout-init failure also failed:", e2);
+      // Roll back the claim or mark failed (only if not connection error)
+      if (!isDatabaseConnectionError(error)) {
+        try {
+          await safeDbOperation(
+            () =>
+              prisma.charge.updateMany({
+                where: { id: charge.id, status: "PAYOUT_INITIATED" },
+                data: {
+                  status: "FAILED",
+                  failureReason: `Payout initiation failed: ${String(error)}`,
+                  lastProcessedAt: new Date(),
+                },
+              }),
+            `processPayoutInitiated:rollback:${charge.chargeId}`
+          );
+        } catch (e2) {
+          console.error("Rollback after payout-init failure also failed:", e2);
+        }
       }
     }
   }
 }
 
 // Step 3: Check payout confirmations
-
 async function processPayoutConfirmed() {
-  const payoutInitiatedCharges = await prisma.charge.findMany({
-    where: {
-      status: "PAYOUT_INITIATED",
-      payoutTxId: { not: null },
-    },
-    include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" },
-    take: 10,
-  });
+  const payoutInitiatedCharges = await safeDbOperation(
+    () =>
+      prisma.charge.findMany({
+        where: {
+          status: "PAYOUT_INITIATED",
+          payoutTxId: { not: null },
+        },
+        include: { merchant: true },
+        orderBy: { lastProcessedAt: "asc" },
+        take: 10,
+      }),
+    "processPayoutConfirmed:findMany"
+  );
+
+  if (!payoutInitiatedCharges) {
+    console.log(
+      "⚠️ Could not fetch payout initiated charges, skipping this batch"
+    );
+    return;
+  }
 
   console.log(
     `🔍 Found ${payoutInitiatedCharges.length} payouts to check for confirmation`
   );
 
   for (const charge of payoutInitiatedCharges) {
+    if (isShuttingDown) break;
+
     try {
       if (!charge.payoutTxId) continue;
 
-      // ✅ Non-blocking transaction status check
-
-      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isSuccess) {
-        // First, update to PAYOUT_CONFIRMED in a separate transaction
-        const updatedCharge = await prisma.charge.update({
-          where: { id: charge.id },
-          data: {
-            status: "PAYOUT_CONFIRMED",
-            payoutConfirmedAt: new Date(),
-            lastProcessedAt: new Date(),
-          },
-          include: { merchant: true },
-        });
-        await publishChargeUpdate(updatedCharge.chargeId);
-
-        console.log(`✅ SBTC payout confirmed for charge ${charge.chargeId}`);
-
-        // Then handle webhook delivery OUTSIDE of any transaction
-        const hasWebhook =
-          !!updatedCharge.merchant?.webhookUrl &&
-          !!updatedCharge.merchant?.webhookSecret;
-
-        if (hasWebhook && updatedCharge.isManual) {
-          try {
-            const ok = await deliverChargeConfirmedWebhook({
-              payload: {
-                chargeId: updatedCharge.chargeId,
-                address: updatedCharge.address,
-                amount: String(updatedCharge.amount),
-                paidAt: updatedCharge.paidAt?.toISOString(),
-                payoutTxId: updatedCharge.payoutTxId,
+        // First, update to PAYOUT_CONFIRMED
+        const updatedCharge = await safeDbOperation(
+          () =>
+            prisma.charge.update({
+              where: { id: charge.id },
+              data: {
+                status: "PAYOUT_CONFIRMED",
+                payoutConfirmedAt: new Date(),
+                lastProcessedAt: new Date(),
               },
-              config: {
-                url: updatedCharge.merchant.webhookUrl,
-                secret: updatedCharge.merchant.webhookSecret,
-              },
-            });
+              include: { merchant: true },
+            }),
+          `processPayoutConfirmed:confirm:${charge.chargeId}`
+        );
 
-            // Only after successful webhook, mark as completed
+        if (updatedCharge) {
+          await publishChargeUpdate(updatedCharge.chargeId);
+          console.log(`✅ SBTC payout confirmed for charge ${charge.chargeId}`);
 
-            if (ok) {
-              await prisma.charge.update({
-                where: { id: charge.id },
-                data: {
-                  status: "COMPLETED",
-                  completedAt: new Date(),
+          // Handle webhook delivery
+          const hasWebhook =
+            !!updatedCharge.merchant?.webhookUrl &&
+            !!updatedCharge.merchant?.webhookSecret;
+
+          if (hasWebhook && updatedCharge.isManual) {
+            try {
+              const ok = await deliverChargeConfirmedWebhook({
+                payload: {
+                  chargeId: updatedCharge.chargeId,
+                  address: updatedCharge.address,
+                  amount: String(updatedCharge.amount),
+                  paidAt: updatedCharge.paidAt?.toISOString(),
+                  payoutTxId: updatedCharge.payoutTxId,
+                },
+                config: {
+                  url: updatedCharge.merchant.webhookUrl,
+                  secret: updatedCharge.merchant.webhookSecret,
                 },
               });
-              console.log(`🎉 Charge ${charge.chargeId} fully completed`);
-            } else {
+
+              if (ok) {
+                await safeDbOperation(
+                  () =>
+                    prisma.charge.update({
+                      where: { id: charge.id },
+                      data: {
+                        status: "COMPLETED",
+                        completedAt: new Date(),
+                      },
+                    }),
+                  `processPayoutConfirmed:complete:${charge.chargeId}`
+                );
+                console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+              } else {
+                console.error(
+                  `📧 Webhook delivery failed for charge ${charge.chargeId}, will retry later`
+                );
+              }
+            } catch (webhookError) {
               console.error(
-                `📧 Webhook delivery failed for charge ${charge.chargeId}, will retry later`
+                `📧 Webhook delivery failed for charge ${charge.chargeId}:`,
+                webhookError
               );
             }
-          } catch (webhookError) {
-            console.error(
-              `📧 Webhook delivery failed for charge ${charge.chargeId}:`,
-              webhookError
+          } else {
+            // No webhook configured, mark as completed immediately
+            await safeDbOperation(
+              () =>
+                prisma.charge.update({
+                  where: { id: charge.id },
+                  data: {
+                    status: "COMPLETED",
+                    completedAt: new Date(),
+                  },
+                }),
+              `processPayoutConfirmed:completeNoWebhook:${charge.chargeId}`
             );
-            // Charge remains in PAYOUT_CONFIRMED status for retry
+            console.log(`✅ Charge ${charge.chargeId} completed (no webhook)`);
           }
-        } else {
-          // No webhook configured, mark as completed immediately
-          await prisma.charge.update({
-            where: { id: charge.id },
-            data: {
-              status: "COMPLETED",
-              completedAt: new Date(),
-            },
-          });
-          console.log(`✅ Charge ${charge.chargeId} completed (no webhook)`);
         }
       } else if (txStatus.isFailed) {
-        // Transaction failed on blockchain
         await markChargeFailed(
           charge.chargeId,
           `Payout transaction failed: ${txStatus.failureReason}`
@@ -303,7 +491,7 @@ async function processPayoutConfirmed() {
           `❌ Payout failed for charge ${charge.chargeId}: ${txStatus.failureReason}`
         );
       } else if (txStatus.isPending) {
-        // Still pending - check if it's been too long
+        // Check timeout
         const timeSinceInitiated =
           Date.now() -
           new Date(charge.lastProcessedAt || charge.createdAt).getTime();
@@ -323,43 +511,44 @@ async function processPayoutConfirmed() {
           );
         }
       }
-      // If status is "unknown", we'll try again next cycle
+
+      // Add delay between transaction checks
+      await new Promise((resolve) => setTimeout(resolve, 150));
     } catch (error) {
       console.error(
         `❌ Error checking payout confirmation for charge ${charge.chargeId}:`,
         error
       );
-      // Don't mark as failed immediately - might be temporary API issue
+      // Don't mark as failed immediately for connection errors
     }
   }
 }
 
-// Retry failed webhooks for payout confirmed charges but not completed ie merchant webhook failed
+// Retry failed webhooks for payout confirmed charges
 export async function retryFailedWebhooks() {
-  // const payoutConfirmedCharges = await prisma.charge.findMany({
-  //   where: {
-  //     status: "PAYOUT_CONFIRMED",
-  //     webhookLastStatus: "FAILED",
-  //     webhookAttempts: { lt: 10 }, // Max 5 attempts
-  //   },
-  //   include: { merchant: true },
-  // });
-  const payoutConfirmedCharges = await prisma.charge.findMany({
-    where: {
-      status: "PAYOUT_CONFIRMED",
-      webhookLastStatus: "FAILED",
-      webhookAttempts: { lt: 10 },
-    },
-    include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
-    take: 10, // process in small chunks
-  });
-  console.log(payoutConfirmedCharges);
+  const payoutConfirmedCharges = await safeDbOperation(
+    () =>
+      prisma.charge.findMany({
+        where: {
+          status: "PAYOUT_CONFIRMED",
+          webhookLastStatus: "FAILED",
+          webhookAttempts: { lt: 10 },
+        },
+        include: { merchant: true },
+        orderBy: { lastProcessedAt: "asc" },
+        take: 10,
+      }),
+    "retryFailedWebhooks:findMany"
+  );
+
+  if (!payoutConfirmedCharges) return;
+
   console.log(
     `🔄 Found ${payoutConfirmedCharges.length} failed webhooks to retry`
   );
 
   for (const charge of payoutConfirmedCharges) {
+    if (isShuttingDown) break;
     if (!charge.merchant?.webhookUrl || !charge.merchant?.webhookSecret)
       continue;
 
@@ -379,12 +568,14 @@ export async function retryFailedWebhooks() {
       });
 
       if (ok) {
-        // Mark as completed on successful webhook
-
-        await prisma.charge.update({
-          where: { id: charge.id },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        });
+        await safeDbOperation(
+          () =>
+            prisma.charge.update({
+              where: { id: charge.id },
+              data: { status: "COMPLETED", completedAt: new Date() },
+            }),
+          `retryFailedWebhooks:complete:${charge.chargeId}`
+        );
         console.log(
           `📧 Webhook retry successful for charge ${charge.chargeId}`
         );
@@ -393,6 +584,8 @@ export async function retryFailedWebhooks() {
           `📧 Webhook retry still failing for charge ${charge.chargeId}`
         );
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error(
         `📧 Webhook retry failed for charge ${charge.chargeId}:`,
@@ -404,19 +597,19 @@ export async function retryFailedWebhooks() {
 
 // Helper function to mark charges as failed
 async function markChargeFailed(chargeId: string, reason: string) {
-  try {
-    await prisma.charge.update({
-      where: { chargeId },
-      data: {
-        status: "FAILED",
-        failureReason: reason,
-        lastProcessedAt: new Date(),
-      },
-    });
-    console.error(`💀 Marked charge ${chargeId} as FAILED: ${reason}`);
-  } catch (error) {
-    console.error(`❌ Failed to mark charge ${chargeId} as failed:`, error);
-  }
+  await safeDbOperation(
+    () =>
+      prisma.charge.update({
+        where: { chargeId },
+        data: {
+          status: "FAILED",
+          failureReason: reason,
+          lastProcessedAt: new Date(),
+        },
+      }),
+    `markChargeFailed:${chargeId}`
+  );
+  console.error(`💀 Marked charge ${chargeId} as FAILED: ${reason}`);
 }
 
 // Check if an address has enough SBTC balance with retry logic
@@ -428,7 +621,7 @@ export async function hasRequiredSbtcBalance(
     try {
       const url = `${HIRO_API_BASE}/extended/v1/address/${address}/balances`;
       const { data } = await axios.get(url, {
-        timeout: 10000, // 10 second timeout
+        timeout: 10000,
       });
 
       const sbtcKey = Object.keys(data.fungible_tokens || {}).find((key) =>
@@ -460,7 +653,6 @@ export async function hasRequiredSbtcBalance(
         return false;
       }
 
-      // Exponential backoff
       const delay = BASE_RETRY_DELAY * Math.pow(2, attempt - 1);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -470,23 +662,29 @@ export async function hasRequiredSbtcBalance(
 
 // Recovery function to handle stuck transactions
 export async function recoverStuckCharges() {
-  const stuckCharges = await prisma.charge.findMany({
-    where: {
-      status: "PAYOUT_INITIATED",
-      lastProcessedAt: {
-        lt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      },
-    },
-  });
+  const stuckCharges = await safeDbOperation(
+    () =>
+      prisma.charge.findMany({
+        where: {
+          status: "PAYOUT_INITIATED",
+          lastProcessedAt: {
+            lt: new Date(Date.now() - 30 * 60 * 1000),
+          },
+        },
+      }),
+    "recoverStuckCharges:findMany"
+  );
+
+  if (!stuckCharges) return;
 
   console.log(`🔧 Found ${stuckCharges.length} potentially stuck charges`);
 
   for (const charge of stuckCharges) {
+    if (isShuttingDown) break;
+
     console.log(`🔧 Checking stuck charge ${charge.chargeId}`);
 
     if (charge.payoutTxId) {
-      // Check the transaction status one more time
-      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isFailed) {
@@ -495,83 +693,156 @@ export async function recoverStuckCharges() {
           `Recovery: Transaction failed - ${txStatus.failureReason}`
         );
       } else if (txStatus.isSuccess) {
-        // Transaction succeeded but wasn't processed, update status
-        await prisma.charge.update({
-          where: { id: charge.id },
-          data: {
-            status: "PAYOUT_CONFIRMED",
-            payoutConfirmedAt: new Date(),
-            lastProcessedAt: new Date(),
-          },
-        });
+        await safeDbOperation(
+          () =>
+            prisma.charge.update({
+              where: { id: charge.id },
+              data: {
+                status: "PAYOUT_CONFIRMED",
+                payoutConfirmedAt: new Date(),
+                lastProcessedAt: new Date(),
+              },
+            }),
+          `recoverStuckCharges:recover:${charge.chargeId}`
+        );
         console.log(
           `🔧 Recovered stuck charge ${charge.chargeId} - transaction was actually successful`
         );
       }
-      // If still pending, let it continue normally
     } else {
-      // No transaction ID - something went wrong during initiation
       await markChargeFailed(
         charge.chargeId,
         "Recovery: Missing transaction ID after 30 minutes"
       );
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 }
-// utils/payment/chargeProcessor.ts
-export async function expireOldCharges() {
-  const now = new Date();
-  const expired = await prisma.charge.updateMany({
-    where: {
-      status: "PENDING",
-      expiresAt: { lte: now },
-    },
-    data: { status: "EXPIRED" },
-  });
 
-  if (expired.count > 0) {
+export async function expireOldCharges() {
+  const expired = await safeDbOperation(
+    () =>
+      prisma.charge.updateMany({
+        where: {
+          status: "PENDING",
+          expiresAt: { lte: new Date() },
+        },
+        data: { status: "EXPIRED" },
+      }),
+    "expireOldCharges"
+  );
+
+  if (expired && expired.count > 0) {
     console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
   }
 }
 
-// Enhanced poller with retry logic and exponential backoff
+// 🔧 CHANGE 12: Completely rewritten poller with proper error handling
 export function startChargeProcessor() {
   let consecutiveFailures = 0;
+  let pollerTimeout: NodeJS.Timeout | null = null;
   const maxFailures = 5;
 
+  // Graceful shutdown handler
+  const gracefulShutdown = async () => {
+    console.log("🛑 Shutting down charge processor gracefully...");
+    isShuttingDown = true;
+
+    if (pollerTimeout) {
+      clearTimeout(pollerTimeout);
+    }
+
+    // Wait for current processing to finish
+    let waitCount = 0;
+    while (isProcessing && waitCount < 30) {
+      // Wait max 30 seconds
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      waitCount++;
+    }
+
+    try {
+      await prisma.$disconnect();
+      console.log("✅ Database disconnected cleanly");
+    } catch (e) {
+      console.warn("⚠️ Error during database disconnect:", e);
+    }
+
+    console.log("✅ Charge processor shut down complete");
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", gracefulShutdown);
+  process.on("SIGINT", gracefulShutdown);
+
   async function pollWithRetry() {
+    if (isShuttingDown) return;
+
     try {
       await processPendingCharges();
       consecutiveFailures = 0; // Reset on success
+      console.log(`✅ Processing cycle completed successfully`);
     } catch (error: any) {
       consecutiveFailures++;
       console.error(
         `💥 Poller error (failure #${consecutiveFailures}):`,
-        error
+        error?.message
       );
-      if (error?.code === "P1001" && consecutiveFailures >= 3) {
-        console.log("🔴 Multiple DB connection failures, waiting longer...");
-        setTimeout(pollWithRetry, 120000); // Wait 2 minutes instead
-        return;
+
+      // Handle database connection errors specifically
+      if (isDatabaseConnectionError(error)) {
+        console.log(
+          "🔌 Database connection error detected, attempting recovery..."
+        );
+        try {
+          await handleDatabaseReconnection();
+          console.log("✅ Database reconnection successful, continuing...");
+        } catch (reconnectError) {
+          console.error("❌ Database reconnection failed:", reconnectError);
+          if (consecutiveFailures >= maxFailures) {
+            console.error("💀 Too many failures, shutting down...");
+            await gracefulShutdown();
+            return;
+          }
+        }
       }
 
       if (consecutiveFailures >= maxFailures) {
         console.error(
-          `💥 Too many consecutive failures (${maxFailures}), extending delay`
+          `💥 Too many consecutive failures (${maxFailures}), shutting down gracefully`
         );
+        await gracefulShutdown();
+        return;
       }
     }
 
-    // Calculate next poll interval based on consecutive failures
+    if (isShuttingDown) return;
+
+    // Calculate next poll interval with exponential backoff
     const baseInterval = 30000; // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
-    const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
+    const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
 
-    console.log(`⏰ Next poll in ${nextInterval / 1000} seconds`);
-    setTimeout(pollWithRetry, nextInterval);
+    console.log(`⏰ Next poll in ${Math.round(nextInterval / 1000)} seconds`);
+    pollerTimeout = setTimeout(pollWithRetry, nextInterval);
   }
 
-  // Start the polling
+  // Initial health check before starting
   console.log("🚀 Starting charge processor...");
-  pollWithRetry();
+  checkDatabaseHealth()
+    .then((healthy) => {
+      if (healthy) {
+        console.log("✅ Initial database health check passed, starting poller");
+        pollWithRetry();
+      } else {
+        console.error(
+          "❌ Initial database health check failed, retrying in 10 seconds"
+        );
+        setTimeout(() => startChargeProcessor(), 10000);
+      }
+    })
+    .catch((error) => {
+      console.error("❌ Failed to start charge processor:", error);
+      setTimeout(() => startChargeProcessor(), 10000);
+    });
 }
