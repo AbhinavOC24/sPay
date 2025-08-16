@@ -26,6 +26,7 @@ export default function DashboardPage() {
     logout,
     updateNewPaymentModalStatus,
   } = useMerchantStore();
+  const [loading, setLoading] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -34,13 +35,18 @@ export default function DashboardPage() {
       try {
         await fetchMerchant();
         await fetchCharges();
-      } catch (err) {
-        console.error("❌ Merchant fetch failed:", err);
-        router.push("/"); // kick back to home
+      } finally {
+        setLoading(false);
       }
     };
     init();
-  }, [fetchMerchant, fetchCharges, router]);
+  }, [fetchMerchant, fetchCharges]);
+
+  useEffect(() => {
+    if (!loading && !merchant) {
+      router.push("/");
+    }
+  }, [loading, merchant, router]);
 
   const handleLogout = async () => {
     await logout();
@@ -117,7 +123,13 @@ export default function DashboardPage() {
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
-
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#0b0d10]">
       {/* Header */}

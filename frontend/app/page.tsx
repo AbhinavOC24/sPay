@@ -14,7 +14,6 @@ import axios from "axios";
 
 import { useRouter } from "next/navigation";
 export default function HomePage() {
-  const { fetchMerchant } = useMerchantStore();
   const router = useRouter();
 
   useEffect(() => {
