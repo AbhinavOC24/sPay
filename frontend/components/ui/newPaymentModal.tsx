@@ -25,6 +25,7 @@ export default function NewPaymentModal() {
     order_id: "",
     success_url: "",
     cancel_url: "",
+    manual: true,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +192,7 @@ export default function NewPaymentModal() {
                     success_url: "",
                     cancel_url: "",
                     order_id: "",
+                    manual: true,
                   });
                   setPaymentUrl(null);
                   setErrors({});

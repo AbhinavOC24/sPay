@@ -21,6 +21,7 @@ export async function publishChargeUpdate(chargeId: string) {
   const payload = toChargeEvent(row);
 
   console.log("PAYLOAD STATUS:", payload.status);
+  console.log(payload);
   eventBus.emit(chargeTopic(chargeId), payload); // ← notify SSE listeners
   return payload;
 }

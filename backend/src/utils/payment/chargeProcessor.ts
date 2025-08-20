@@ -128,7 +128,6 @@ export function startChargeProcessor() {
 
 // Main function - processes all pending charges through the state machine
 export async function processPendingCharges() {
-  // 🔧 CHANGE 7: Enhanced processing guard with shutdown check
   if (isProcessing) {
     console.log("Charge processing already in progress, skipping...");
     return;
@@ -187,14 +186,12 @@ async function processNewPayments() {
 
   console.log(`📋 Found ${pendingCharges.length} pending charges to check`);
 
-  // 🔧 CHANGE 10: Process sequentially to avoid overwhelming database
   for (const charge of pendingCharges) {
     if (isShuttingDown) break;
 
     try {
       const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
       if (paid) {
-        // Use database transaction to ensure atomicity
         const updated = await safeDbOperation(
           () =>
             prisma.$transaction(async (tx) => {
@@ -228,6 +225,7 @@ async function processNewPayments() {
         if (updated) {
           console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
           try {
+            console.log("Pushing from processnewPayment");
             await publishChargeUpdate(charge.chargeId);
           } catch (e) {
             console.error("Emit/public update failed for", charge.chargeId, e);
@@ -235,7 +233,6 @@ async function processNewPayments() {
         }
       }
 
-      // 🔧 CHANGE 11: Add small delay between charges to prevent overwhelming
       await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error(
@@ -333,6 +330,8 @@ async function processPayoutInitiated() {
 
       if (updated) {
         try {
+          console.log("Pushing from processPayoutInitited");
+
           await publishChargeUpdate(charge.chargeId);
         } catch (e) {
           console.error("Emit/public update failed for", charge.chargeId, e);
@@ -426,9 +425,6 @@ async function processPayoutConfirmed() {
         );
 
         if (updatedCharge) {
-          await publishChargeUpdate(updatedCharge.chargeId);
-          console.log(`✅ SBTC payout confirmed for charge ${charge.chargeId}`);
-
           // Handle webhook delivery
           const hasWebhook =
             !!updatedCharge.merchant?.webhookUrl &&
@@ -463,6 +459,12 @@ async function processPayoutConfirmed() {
                   `processPayoutConfirmed:complete:${charge.chargeId}`
                 );
                 console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+                console.log("Pushing from processPayoutconfirmed");
+
+                await publishChargeUpdate(updatedCharge.chargeId);
+                console.log(
+                  `✅ SBTC payout confirmed for charge ${charge.chargeId}`
+                );
               } else {
                 console.error(
                   `📧 Webhook delivery failed for charge ${charge.chargeId}, will retry later`
