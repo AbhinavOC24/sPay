@@ -36,6 +36,8 @@ import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 
 const app = express();
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use("/static", express.static(path.join(__dirname, "public")));
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));

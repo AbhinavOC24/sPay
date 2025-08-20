@@ -4,8 +4,6 @@
 import { create } from "zustand";
 import axios from "axios";
 
-const API = process.env.NEXT_PUBLIC_BACKEND_URL;
-
 interface Merchant {
   id: string;
   name: string;
@@ -55,7 +53,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
   fetchMerchant: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await axios.get(`${API}/api/merchants/me`, {
+      const res = await axios.get(`/backend/api/merchants/me`, {
         withCredentials: true,
       });
       set({ merchant: res.data });
@@ -69,7 +67,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
   fetchCharges: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await axios.get(`${API}/api/merchants/charges`, {
+      const res = await axios.get(`backend/api/merchants/charges`, {
         withCredentials: true,
       });
       set({ charges: res.data.charges });
@@ -84,7 +82,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `${API}/api/merchants/signup`,
+        `/backend/api/merchants/signup`,
         { name, email, password },
         { withCredentials: true }
       );
@@ -102,7 +100,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `${API}/api/merchants/login`,
+        `backend/api/merchants/login`,
         { email, password },
         { withCredentials: true }
       );
@@ -120,7 +118,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `${API}/api/merchants/logout`,
+        `backend/api/merchants/logout`,
         {},
         { withCredentials: true }
       );
@@ -147,15 +145,12 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
       if (webhookUrl) body.webhookUrl = webhookUrl;
       if (webhookSecret) body.webhookSecret = webhookSecret;
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/merchants/config`,
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      );
+      const res = await fetch(`/backend/api/merchants/config`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
       if (!res.ok) {
         const errData = await res.json();

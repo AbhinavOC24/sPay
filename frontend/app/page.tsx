@@ -19,10 +19,9 @@ export default function HomePage() {
   useEffect(() => {
     const checkMerchant = async () => {
       try {
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/merchants/me`,
-          { withCredentials: true }
-        );
+        const res = await axios.get(`/backend/api/merchants/me`, {
+          withCredentials: true,
+        });
 
         if (res.data && res.data.id) {
           router.push("/dashboard");
