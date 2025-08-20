@@ -32,25 +32,55 @@ import { chargeTopic, eventBus } from "./utils/eventBus";
 
 import fetchUsdExchangeRate from "./utils/blockchain/fetchUsdExchangeRate";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
 
 const app = express();
 app.use(express.json());
 app.use("/static", express.static(path.join(__dirname, "public")));
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 
+const pgPool = new Pool({
+  connectionString: process.env.DATABASE_URL, // or user/pass/host/db separately
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
+});
+const PgSession = connectPgSimple(session);
+
 app.use(
   session({
-    secret: "super-secret-key",
+    store: new PgSession({
+      pool: pgPool, // connection pool
+      tableName: "session", // you can override the table name (default is "session")
+      createTableIfMissing: true, // 👈 auto-creates session table
+    }),
+    secret: process.env.FOO_COOKIE_SECRET || "123123123",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      secure: process.env.NODE_ENV === "production", // cookie over https only in prod
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      httpOnly: true,
     },
   })
 );
+
+// app.use(
+//   session({
+//     secret: "super-secret-key",
+//     resave: false,
+//     saveUninitialized: false,
+//     cookie: {
+//       secure: process.env.NODE_ENV === "production",
+//       httpOnly: true,
+//       maxAge: 1000 * 60 * 60 * 24 * 7,
+//       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+//     },
+//   })
+// );
 
 dotenv.config();
 
