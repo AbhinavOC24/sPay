@@ -3,7 +3,6 @@ import axios from "axios";
 import * as crypto from "crypto";
 import { WebhookDeliveryParams } from "../../types/types";
 
-// Send a webhook to the merchant with retries and signature verification
 export async function deliverChargeConfirmedWebhook({
   payload,
   config,
@@ -14,11 +13,10 @@ export async function deliverChargeConfirmedWebhook({
     );
     return;
   }
-  // Stable per logical event (do NOT change across retries)
+
   const eventId = `${payload.chargeId}:payout_completed`;
   const nowIso = new Date().toISOString();
 
-  // Generate HMAC signature
   const eventEnvelope = {
     type: "charge.completed",
     eventId,
@@ -44,15 +42,14 @@ export async function deliverChargeConfirmedWebhook({
       await axios.post(config.url, bodyJson, {
         headers: {
           "Content-Type": "application/json",
-          "X-SBTC-Signature": signature, // HMAC of raw body
-          "X-SBTC-Event-Id": eventId, // idem key for receiver
+          "X-SBTC-Signature": signature,
+          "X-SBTC-Event-Id": eventId,
           "X-SBTC-Event-Attempt": String(attempts),
           "X-SBTC-Event-Timestamp": nowIso,
         },
         timeout: 8000,
       });
 
-      // Update webhook success status
       await prisma.charge.update({
         where: { chargeId: payload.chargeId },
         data: {
@@ -74,7 +71,6 @@ export async function deliverChargeConfirmedWebhook({
         error?.response?.status || error?.code || error?.message
       );
 
-      // Update webhook failure status
       await prisma.charge.update({
         where: { chargeId: payload.chargeId },
         data: {
@@ -84,9 +80,8 @@ export async function deliverChargeConfirmedWebhook({
         },
       });
 
-      // If not the last attempt, wait before retrying
       if (attempts < maxAttempts) {
-        const backoffDelay = attempts * 2000; // 2s, 4s, 6s
+        const backoffDelay = attempts * 2000;
         console.log(`📧 ⏳ Retrying webhook in ${backoffDelay}ms...`);
         await new Promise((res) => setTimeout(res, backoffDelay));
       }

@@ -2,120 +2,128 @@ import prisma from "../../db";
 import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
 import { transferSbtc } from "../blockchain/transferSbtc";
-import { checkTxStatus } from "./checkTxStatus";
+import { checkTxStatus } from "../blockchain/checkTxStatus";
 import { publishChargeUpdate } from "./publishChargeUpdate";
-
+import {
+  safeDbOperation,
+  isDatabaseConnectionError,
+  checkDatabaseHealth,
+  handleDatabaseReconnection,
+} from "../dbChecker/dbChecker";
+import { hasRequiredSbtcBalance } from "../blockchain/checksBTC";
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
 //PENDING → CONFIRMED → PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
-
-// Retry configuration
-const MAX_RETRIES = 3;
-const BASE_RETRY_DELAY = 1000; // 1 second
-
-// 🔧 CHANGE 1: Enhanced processing flags to prevent race conditions
+import { markChargeFailed } from "./markChargeFailed";
+// flags to prevent race conditions
 let isProcessing = false;
 let isShuttingDown = false;
-let consecutiveDbErrors = 0;
-const MAX_DB_ERRORS = 5;
 
-// 🔧 CHANGE 2: Database health monitoring
-let lastDbHealthCheck = Date.now();
-const DB_HEALTH_CHECK_INTERVAL = 60000; // 1 minute
+export function startChargeProcessor() {
+  let consecutiveFailures = 0;
+  let pollerTimeout: NodeJS.Timeout | null = null;
+  const maxFailures = 5;
 
-// 🔧 CHANGE 3: Safe database operation wrapper
-async function safeDbOperation<T>(
-  operation: () => Promise<T>,
-  operationName: string
-): Promise<T | null> {
-  try {
-    // Check if we need a health check
-    if (Date.now() - lastDbHealthCheck > DB_HEALTH_CHECK_INTERVAL) {
-      await checkDatabaseHealth();
+  // Graceful shutdown handler
+  const gracefulShutdown = async () => {
+    console.log("🛑 Shutting down charge processor gracefully...");
+    isShuttingDown = true;
+
+    if (pollerTimeout) {
+      clearTimeout(pollerTimeout);
     }
 
-    const result = await operation();
-    consecutiveDbErrors = 0; // Reset on success
-    return result;
-  } catch (error: any) {
-    consecutiveDbErrors++;
-    console.error(
-      `❌ Database operation '${operationName}' failed (error #${consecutiveDbErrors}):`,
-      error?.message
-    );
+    // Wait for current processing to finish
+    let waitCount = 0;
+    while (isProcessing && waitCount < 30) {
+      // Wait max 30 seconds
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      waitCount++;
+    }
 
-    // Check if it's a connection-related error
-    if (isDatabaseConnectionError(error)) {
+    try {
+      await prisma.$disconnect();
+      console.log("✅ Database disconnected cleanly");
+    } catch (e) {
+      console.warn("⚠️ Error during database disconnect:", e);
+    }
+
+    console.log("✅ Charge processor shut down complete");
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", gracefulShutdown);
+  process.on("SIGINT", gracefulShutdown);
+
+  async function pollWithRetry() {
+    if (isShuttingDown) return;
+
+    try {
+      await processPendingCharges();
+      consecutiveFailures = 0; // Reset on success
+      console.log(`✅ Processing cycle completed successfully`);
+    } catch (error: any) {
+      consecutiveFailures++;
       console.error(
-        `🔌 Database connection issue detected in ${operationName}`
+        `💥 Poller error (failure #${consecutiveFailures}):`,
+        error?.message
       );
-      if (consecutiveDbErrors >= MAX_DB_ERRORS) {
-        console.error(
-          `💀 Too many database errors (${MAX_DB_ERRORS}), triggering reconnection`
+
+      // Handle database connection errors specifically
+      if (isDatabaseConnectionError(error)) {
+        console.log(
+          "🔌 Database connection error detected, attempting recovery..."
         );
-        await handleDatabaseReconnection();
+        try {
+          await handleDatabaseReconnection();
+          console.log("✅ Database reconnection successful, continuing...");
+        } catch (reconnectError) {
+          console.error("❌ Database reconnection failed:", reconnectError);
+          if (consecutiveFailures >= maxFailures) {
+            console.error("💀 Too many failures, shutting down...");
+            await gracefulShutdown();
+            return;
+          }
+        }
       }
-      throw error; // Rethrow connection errors to trigger higher-level handling
+
+      if (consecutiveFailures >= maxFailures) {
+        console.error(
+          `💥 Too many consecutive failures (${maxFailures}), shutting down gracefully`
+        );
+        await gracefulShutdown();
+        return;
+      }
     }
 
-    // For non-connection errors, log and return null
-    console.error(
-      `⚠️ Non-critical database error in ${operationName}, continuing...`
-    );
-    return null;
+    if (isShuttingDown) return;
+
+    // Calculate next poll interval with exponential backoff
+    const baseInterval = 30000; // 30 seconds base
+    const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
+    const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
+
+    console.log(`⏰ Next poll in ${Math.round(nextInterval / 1000)} seconds`);
+    pollerTimeout = setTimeout(pollWithRetry, nextInterval);
   }
-}
 
-// 🔧 CHANGE 4: Database connection error detection
-function isDatabaseConnectionError(error: any): boolean {
-  const connectionErrorMessages = [
-    "Response from the Engine was empty", // Your exact error
-    "Connection terminated unexpectedly",
-    "Connection lost",
-    "ECONNREFUSED",
-    "ENOTFOUND",
-    "ETIMEDOUT",
-    "P1001", // Prisma connection error code
-    "P1017", // Server has closed the connection
-  ];
-
-  const errorMessage = error?.message || error?.code || "";
-  return connectionErrorMessages.some((msg) => errorMessage.includes(msg));
-}
-
-// 🔧 CHANGE 5: Database health check function
-async function checkDatabaseHealth(): Promise<boolean> {
-  try {
-    await prisma.$queryRaw`SELECT 1 as health_check`;
-    lastDbHealthCheck = Date.now();
-    console.log("✅ Database health check passed");
-    return true;
-  } catch (error) {
-    console.error("❌ Database health check failed:", error);
-    return false;
-  }
-}
-
-// 🔧 CHANGE 6: Database reconnection handler
-async function handleDatabaseReconnection(): Promise<void> {
-  try {
-    console.log("🔄 Attempting database reconnection...");
-
-    // Disconnect existing connection
-    await prisma.$disconnect();
-
-    // Wait before reconnecting
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // Test new connection
-    await prisma.$connect();
-    await checkDatabaseHealth();
-
-    consecutiveDbErrors = 0;
-    console.log("✅ Database reconnection successful");
-  } catch (error) {
-    console.error("❌ Database reconnection failed:", error);
-    throw error;
-  }
+  // Initial health check before starting
+  console.log("🚀 Starting charge processor...");
+  checkDatabaseHealth()
+    .then((healthy) => {
+      if (healthy) {
+        console.log("✅ Initial database health check passed, starting poller");
+        pollWithRetry();
+      } else {
+        console.error(
+          "❌ Initial database health check failed, retrying in 10 seconds"
+        );
+        setTimeout(() => startChargeProcessor(), 10000);
+      }
+    })
+    .catch((error) => {
+      console.error("❌ Failed to start charge processor:", error);
+      setTimeout(() => startChargeProcessor(), 10000);
+    });
 }
 
 // Main function - processes all pending charges through the state machine
@@ -595,71 +603,6 @@ export async function retryFailedWebhooks() {
   }
 }
 
-// Helper function to mark charges as failed
-async function markChargeFailed(chargeId: string, reason: string) {
-  await safeDbOperation(
-    () =>
-      prisma.charge.update({
-        where: { chargeId },
-        data: {
-          status: "FAILED",
-          failureReason: reason,
-          lastProcessedAt: new Date(),
-        },
-      }),
-    `markChargeFailed:${chargeId}`
-  );
-  console.error(`💀 Marked charge ${chargeId} as FAILED: ${reason}`);
-}
-
-// Check if an address has enough SBTC balance with retry logic
-export async function hasRequiredSbtcBalance(
-  address: string,
-  requiredAmount: bigint
-) {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const url = `${HIRO_API_BASE}/extended/v1/address/${address}/balances`;
-      const { data } = await axios.get(url, {
-        timeout: 10000,
-      });
-
-      const sbtcKey = Object.keys(data.fungible_tokens || {}).find((key) =>
-        key.includes("sbtc")
-      );
-
-      if (!sbtcKey) return false;
-
-      const balance = BigInt(data.fungible_tokens[sbtcKey].balance || "0");
-      const hasEnough = balance >= requiredAmount;
-
-      if (hasEnough) {
-        console.log(
-          `💰 Address ${address} has sufficient balance: ${balance} >= ${requiredAmount}`
-        );
-      }
-
-      return hasEnough;
-    } catch (error: any) {
-      console.error(
-        `❌ Attempt ${attempt} failed for balance check of ${address}:`,
-        error?.message
-      );
-
-      if (attempt === MAX_RETRIES) {
-        console.error(
-          `❌ Failed to check balance after ${MAX_RETRIES} attempts`
-        );
-        return false;
-      }
-
-      const delay = BASE_RETRY_DELAY * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-  return false;
-}
-
 // Recovery function to handle stuck transactions
 export async function recoverStuckCharges() {
   const stuckCharges = await safeDbOperation(
@@ -736,113 +679,4 @@ export async function expireOldCharges() {
   if (expired && expired.count > 0) {
     console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
   }
-}
-
-// 🔧 CHANGE 12: Completely rewritten poller with proper error handling
-export function startChargeProcessor() {
-  let consecutiveFailures = 0;
-  let pollerTimeout: NodeJS.Timeout | null = null;
-  const maxFailures = 5;
-
-  // Graceful shutdown handler
-  const gracefulShutdown = async () => {
-    console.log("🛑 Shutting down charge processor gracefully...");
-    isShuttingDown = true;
-
-    if (pollerTimeout) {
-      clearTimeout(pollerTimeout);
-    }
-
-    // Wait for current processing to finish
-    let waitCount = 0;
-    while (isProcessing && waitCount < 30) {
-      // Wait max 30 seconds
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      waitCount++;
-    }
-
-    try {
-      await prisma.$disconnect();
-      console.log("✅ Database disconnected cleanly");
-    } catch (e) {
-      console.warn("⚠️ Error during database disconnect:", e);
-    }
-
-    console.log("✅ Charge processor shut down complete");
-    process.exit(0);
-  };
-
-  process.on("SIGTERM", gracefulShutdown);
-  process.on("SIGINT", gracefulShutdown);
-
-  async function pollWithRetry() {
-    if (isShuttingDown) return;
-
-    try {
-      await processPendingCharges();
-      consecutiveFailures = 0; // Reset on success
-      console.log(`✅ Processing cycle completed successfully`);
-    } catch (error: any) {
-      consecutiveFailures++;
-      console.error(
-        `💥 Poller error (failure #${consecutiveFailures}):`,
-        error?.message
-      );
-
-      // Handle database connection errors specifically
-      if (isDatabaseConnectionError(error)) {
-        console.log(
-          "🔌 Database connection error detected, attempting recovery..."
-        );
-        try {
-          await handleDatabaseReconnection();
-          console.log("✅ Database reconnection successful, continuing...");
-        } catch (reconnectError) {
-          console.error("❌ Database reconnection failed:", reconnectError);
-          if (consecutiveFailures >= maxFailures) {
-            console.error("💀 Too many failures, shutting down...");
-            await gracefulShutdown();
-            return;
-          }
-        }
-      }
-
-      if (consecutiveFailures >= maxFailures) {
-        console.error(
-          `💥 Too many consecutive failures (${maxFailures}), shutting down gracefully`
-        );
-        await gracefulShutdown();
-        return;
-      }
-    }
-
-    if (isShuttingDown) return;
-
-    // Calculate next poll interval with exponential backoff
-    const baseInterval = 30000; // 30 seconds base
-    const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
-    const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
-
-    console.log(`⏰ Next poll in ${Math.round(nextInterval / 1000)} seconds`);
-    pollerTimeout = setTimeout(pollWithRetry, nextInterval);
-  }
-
-  // Initial health check before starting
-  console.log("🚀 Starting charge processor...");
-  checkDatabaseHealth()
-    .then((healthy) => {
-      if (healthy) {
-        console.log("✅ Initial database health check passed, starting poller");
-        pollWithRetry();
-      } else {
-        console.error(
-          "❌ Initial database health check failed, retrying in 10 seconds"
-        );
-        setTimeout(() => startChargeProcessor(), 10000);
-      }
-    })
-    .catch((error) => {
-      console.error("❌ Failed to start charge processor:", error);
-      setTimeout(() => startChargeProcessor(), 10000);
-    });
 }

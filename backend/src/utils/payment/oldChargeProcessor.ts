@@ -2,23 +2,61 @@ import prisma from "../../db";
 import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
 import { transferSbtc } from "../blockchain/transferSbtc";
-import { checkTxStatus } from "./checkTxStatus";
+import { checkTxStatus } from "../blockchain/checkTxStatus";
 import { publishChargeUpdate } from "./publishChargeUpdate";
 
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
 //PENDING → CONFIRMED → PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
-//
+
 // Retry configuration
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 1000; // 1 second
 
-// Add a simple in-memory flag to prevent concurrent polling
 let isProcessing = false;
+export function startChargeProcessor() {
+  let consecutiveFailures = 0;
+  const maxFailures = 5;
 
+  async function pollWithRetry() {
+    try {
+      await processPendingCharges();
+      consecutiveFailures = 0; // Reset on success
+    } catch (error: any) {
+      consecutiveFailures++;
+      console.error(
+        `💥 Poller error (failure #${consecutiveFailures}):`,
+        error
+      );
+      if (error?.code === "P1001" && consecutiveFailures >= 3) {
+        console.log("🔴 Multiple DB connection failures, waiting longer...");
+        setTimeout(pollWithRetry, 120000); // Wait 2 minutes instead
+        return;
+      }
+
+      if (consecutiveFailures >= maxFailures) {
+        console.error(
+          `💥 Too many consecutive failures (${maxFailures}), extending delay`
+        );
+      }
+    }
+
+    // Calculate next poll interval based on consecutive failures
+    const baseInterval = 30000; // 30 seconds base
+    const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
+    const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
+
+    console.log(`⏰ Next poll in ${nextInterval / 1000} seconds`);
+    setTimeout(pollWithRetry, nextInterval);
+  }
+
+  // Start the polling
+  console.log("🚀 Starting charge processor...");
+  pollWithRetry();
+}
 // Main function - processes all pending charges through the state machine
 export async function processPendingCharges() {
   await expireOldCharges();
-  // Prevent concurrent execution
+
   if (isProcessing) {
     console.log("Charge processing already in progress, skipping...");
     return;
@@ -27,7 +65,6 @@ export async function processPendingCharges() {
   isProcessing = true;
 
   try {
-    // Process different statuses separately to ensure proper order
     await processNewPayments(); // PENDING → CONFIRMED
     await processPayoutInitiated(); // CONFIRMED → PAYOUT_INITIATED
     await processPayoutConfirmed(); // PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
@@ -49,7 +86,7 @@ async function processNewPayments() {
   const pendingCharges = await prisma.charge.findMany({
     where: { status: "PENDING" },
     include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
+    orderBy: { lastProcessedAt: "asc" },
     take: 10,
   });
 
@@ -59,9 +96,7 @@ async function processNewPayments() {
     try {
       const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
       if (paid) {
-        // Use database transaction to ensure atomicity
         await prisma.$transaction(async (tx) => {
-          // Mark as confirmed
           const updated = await tx.charge.update({
             where: { id: charge.id },
             data: {
@@ -74,7 +109,6 @@ async function processNewPayments() {
 
           console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
 
-          // Validate prerequisites for payout
           if (!updated.privKey) {
             throw new Error(
               `Missing temp wallet privKey for charge ${updated.chargeId}`
@@ -97,7 +131,7 @@ async function processNewPayments() {
         `❌ Error processing payment confirmation for charge ${charge.chargeId}:`,
         error
       );
-      // Mark as failed for manual intervention
+
       await markChargeFailed(
         charge.chargeId,
         `Payment confirmation failed: ${error}`
@@ -111,7 +145,7 @@ async function processPayoutInitiated() {
   const confirmedCharges = await prisma.charge.findMany({
     where: { status: "CONFIRMED" },
     include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
+    orderBy: { lastProcessedAt: "asc" },
     take: 10,
   });
 
@@ -121,7 +155,6 @@ async function processPayoutInitiated() {
 
   for (const charge of confirmedCharges) {
     try {
-      // 1) Atomically claim the job: CONFIRMED -> PAYOUT_INITIATED
       const claim = await prisma.charge.update({
         where: { id: charge.id, status: "CONFIRMED" },
         data: {
@@ -131,7 +164,6 @@ async function processPayoutInitiated() {
       });
 
       if (!claim) {
-        // someone else took it or status changed
         console.log(
           `⚠️ Charge ${charge.chargeId} not claimed (status changed)`
         );
@@ -140,7 +172,6 @@ async function processPayoutInitiated() {
 
       console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
 
-      // 2) Do the network call OUTSIDE any transaction
       if (!charge.privKey) {
         throw new Error(
           `Missing temp wallet privKey for charge ${charge.chargeId}`
@@ -159,7 +190,6 @@ async function processPayoutInitiated() {
         charge.amount
       );
 
-      // 3) Persist txid (still outside a long transaction)
       await prisma.charge.update({
         where: { id: charge.id },
         data: { payoutTxId: txid, lastProcessedAt: new Date() },
@@ -185,7 +215,7 @@ async function processPayoutInitiated() {
         await prisma.charge.updateMany({
           where: { id: charge.id, status: "PAYOUT_INITIATED" },
           data: {
-            status: "FAILED", // or "CONFIRMED" if you want to retry later
+            status: "FAILED",
             failureReason: `Payout initiation failed: ${String(error)}`,
             lastProcessedAt: new Date(),
           },
@@ -218,13 +248,9 @@ async function processPayoutConfirmed() {
     try {
       if (!charge.payoutTxId) continue;
 
-      // ✅ Non-blocking transaction status check
-
-      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isSuccess) {
-        // First, update to PAYOUT_CONFIRMED in a separate transaction
         const updatedCharge = await prisma.charge.update({
           where: { id: charge.id },
           data: {
@@ -238,7 +264,6 @@ async function processPayoutConfirmed() {
 
         console.log(`✅ SBTC payout confirmed for charge ${charge.chargeId}`);
 
-        // Then handle webhook delivery OUTSIDE of any transaction
         const hasWebhook =
           !!updatedCharge.merchant?.webhookUrl &&
           !!updatedCharge.merchant?.webhookSecret;
@@ -259,8 +284,6 @@ async function processPayoutConfirmed() {
               },
             });
 
-            // Only after successful webhook, mark as completed
-
             if (ok) {
               await prisma.charge.update({
                 where: { id: charge.id },
@@ -280,7 +303,6 @@ async function processPayoutConfirmed() {
               `📧 Webhook delivery failed for charge ${charge.chargeId}:`,
               webhookError
             );
-            // Charge remains in PAYOUT_CONFIRMED status for retry
           }
         } else {
           // No webhook configured, mark as completed immediately
@@ -329,21 +351,12 @@ async function processPayoutConfirmed() {
         `❌ Error checking payout confirmation for charge ${charge.chargeId}:`,
         error
       );
-      // Don't mark as failed immediately - might be temporary API issue
     }
   }
 }
 
 // Retry failed webhooks for payout confirmed charges but not completed ie merchant webhook failed
 export async function retryFailedWebhooks() {
-  // const payoutConfirmedCharges = await prisma.charge.findMany({
-  //   where: {
-  //     status: "PAYOUT_CONFIRMED",
-  //     webhookLastStatus: "FAILED",
-  //     webhookAttempts: { lt: 10 }, // Max 5 attempts
-  //   },
-  //   include: { merchant: true },
-  // });
   const payoutConfirmedCharges = await prisma.charge.findMany({
     where: {
       status: "PAYOUT_CONFIRMED",
@@ -351,10 +364,10 @@ export async function retryFailedWebhooks() {
       webhookAttempts: { lt: 10 },
     },
     include: { merchant: true },
-    orderBy: { lastProcessedAt: "asc" }, // or createdAt
-    take: 10, // process in small chunks
+    orderBy: { lastProcessedAt: "asc" },
+    take: 10,
   });
-  console.log(payoutConfirmedCharges);
+
   console.log(
     `🔄 Found ${payoutConfirmedCharges.length} failed webhooks to retry`
   );
@@ -379,8 +392,6 @@ export async function retryFailedWebhooks() {
       });
 
       if (ok) {
-        // Mark as completed on successful webhook
-
         await prisma.charge.update({
           where: { id: charge.id },
           data: { status: "COMPLETED", completedAt: new Date() },
@@ -402,7 +413,6 @@ export async function retryFailedWebhooks() {
   }
 }
 
-// Helper function to mark charges as failed
 async function markChargeFailed(chargeId: string, reason: string) {
   try {
     await prisma.charge.update({
@@ -419,7 +429,6 @@ async function markChargeFailed(chargeId: string, reason: string) {
   }
 }
 
-// Check if an address has enough SBTC balance with retry logic
 export async function hasRequiredSbtcBalance(
   address: string,
   requiredAmount: bigint
@@ -485,8 +494,6 @@ export async function recoverStuckCharges() {
     console.log(`🔧 Checking stuck charge ${charge.chargeId}`);
 
     if (charge.payoutTxId) {
-      // Check the transaction status one more time
-      // const txStatus = await checkTxStatus(charge.payoutTxId);
       const txStatus = await checkTxStatus(charge.payoutTxId);
 
       if (txStatus.isFailed) {
@@ -510,7 +517,6 @@ export async function recoverStuckCharges() {
       }
       // If still pending, let it continue normally
     } else {
-      // No transaction ID - something went wrong during initiation
       await markChargeFailed(
         charge.chargeId,
         "Recovery: Missing transaction ID after 30 minutes"
@@ -518,7 +524,7 @@ export async function recoverStuckCharges() {
     }
   }
 }
-// utils/payment/chargeProcessor.ts
+
 export async function expireOldCharges() {
   const now = new Date();
   const expired = await prisma.charge.updateMany({
@@ -532,46 +538,4 @@ export async function expireOldCharges() {
   if (expired.count > 0) {
     console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
   }
-}
-
-// Enhanced poller with retry logic and exponential backoff
-export function startChargeProcessor() {
-  let consecutiveFailures = 0;
-  const maxFailures = 5;
-
-  async function pollWithRetry() {
-    try {
-      await processPendingCharges();
-      consecutiveFailures = 0; // Reset on success
-    } catch (error: any) {
-      consecutiveFailures++;
-      console.error(
-        `💥 Poller error (failure #${consecutiveFailures}):`,
-        error
-      );
-      if (error?.code === "P1001" && consecutiveFailures >= 3) {
-        console.log("🔴 Multiple DB connection failures, waiting longer...");
-        setTimeout(pollWithRetry, 120000); // Wait 2 minutes instead
-        return;
-      }
-
-      if (consecutiveFailures >= maxFailures) {
-        console.error(
-          `💥 Too many consecutive failures (${maxFailures}), extending delay`
-        );
-      }
-    }
-
-    // Calculate next poll interval based on consecutive failures
-    const baseInterval = 30000; // 30 seconds base
-    const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
-    const nextInterval = baseInterval * Math.pow(2, backoffMultiplier);
-
-    console.log(`⏰ Next poll in ${nextInterval / 1000} seconds`);
-    setTimeout(pollWithRetry, nextInterval);
-  }
-
-  // Start the polling
-  console.log("🚀 Starting charge processor...");
-  pollWithRetry();
 }

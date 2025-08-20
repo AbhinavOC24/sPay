@@ -13,12 +13,11 @@ import { merchantSignupSchema } from "./zod/zodCheck";
 
 import bcrypt from "bcryptjs";
 
-import { genApiKey, genApiSecret } from "./utils/keys"; // you already have this
+import { genApiKey, genApiSecret } from "./utils/keys";
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
 };
 import {
-  processPendingCharges,
   recoverStuckCharges,
   retryFailedWebhooks,
   startChargeProcessor,
@@ -30,7 +29,7 @@ import { deriveHotWallet } from "./utils/blockchain/deriveHotWallet";
 import { calculateFeeBuffer } from "./utils/payment/feeCalculator";
 import toChargeEvent from "./utils/payment/publicPayloadBuilder";
 import { chargeTopic, eventBus } from "./utils/eventBus";
-import { CANCELLED } from "dns";
+
 import fetchUsdExchangeRate from "./utils/blockchain/fetchUsdExchangeRate";
 import session from "express-session";
 
@@ -49,7 +48,7 @@ app.use(
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    }, // secure: true in prod (HTTPS)
+    },
   })
 );
 
@@ -59,10 +58,9 @@ app.listen(process.env.BACKEND_PORT, () => {
   console.log(`listening on port ${process.env.BACKEND_PORT}`);
 
   startChargeProcessor();
-  setInterval(() => retryFailedWebhooks(), 60_000); // every 1 min
+  setInterval(() => retryFailedWebhooks(), 60_000);
 
-  // recover payouts that look stuck less often
-  setInterval(() => recoverStuckCharges(), 5 * 60_000); // every 5 min
+  setInterval(() => recoverStuckCharges(), 5 * 60_000);
 });
 
 app.post(
@@ -80,7 +78,6 @@ app.post(
         return;
       }
 
-      // Fast path: replay same logical request
       const existing = await prisma.charge.findUnique({
         where: {
           merchantid_idempotencyKey: {
@@ -103,7 +100,6 @@ app.post(
       if (!merchant) return;
       const arg = {
         secretKey: generateSecretKey(),
-        // "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
         password: process.env.password as string,
       };
       const newWallet = await generateWallet(arg);
@@ -133,9 +129,6 @@ app.post(
       await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
       console.log(`✅ Transferred dynamic fee buffer to temp wallet`);
 
-      // const webhookSecret = webhookUrl
-      //   ? crypto.randomBytes(32).toString("hex")
-      //   : null;
       const manualCharge = parsed.data.manual ?? false;
       const TTL_MIN = 15;
       const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
@@ -170,8 +163,6 @@ app.post(
     }
   }
 );
-
-// app.post("/api/merchants/signup", async (req: Request, res: Response) => {});
 
 app.put("/api/merchants/config", checkDashBoardAuth, async (req, res) => {
   const { payoutStxAddress, webhookUrl, webhookSecret } = req.body;
@@ -356,10 +347,9 @@ app.get(
         },
       });
 
-      // Convert BigInt amount to number and add USD value
       const formatted = charges.map((c) => ({
         chargeId: c.chargeId,
-        amountSbtc: Number(c.amount) / 100_000_000, // sBTC
+        amountSbtc: Number(c.amount) / 100_000_000,
         amountUsd: (Number(c.amount) / 100_000_000) * (c.usdRate || 1),
         status: c.status,
         createdAt: c.createdAt,
@@ -507,8 +497,7 @@ app.get("/checkout/:id", async (req, res) => {
   // Not expired → show checkout page
   return res.sendFile(path.join(__dirname, "public", "checkout.html"));
 });
-// POST /charges/:id/cancel  — only if status === PENDING
-// POST /charges/:id/cancel with debugging
+
 app.post("/charges/:id/cancel", async (req, res) => {
   const id = req.params.id;
   console.log(`🔄 Cancel request for charge: ${id}`);
