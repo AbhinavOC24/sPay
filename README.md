@@ -13,7 +13,7 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 
 ## 🎥 Demo Video
 
-📺 [Link to 5-min demo](#)
+📺 [Link to 5-min demo](#) (Yet to upload)
 
 ## 🚀 Features
 
@@ -30,6 +30,7 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 
 - **Backend**: Node.js, Express, Prisma, PostgreSQL
 - **Blockchain**: Stacks.js, sBTC testnet
+- **Frontend (Merchant Dashboard)**: Next.js 
 - **Frontend (Checkout)**: Vanilla HTML/CSS/JS
 - **Infra**: EventSource (SSE) + polling fallback
 - **Security**: HMAC webhook signing, API key + secret auth
