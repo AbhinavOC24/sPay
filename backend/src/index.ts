@@ -96,7 +96,7 @@ app.listen(process.env.BACKEND_PORT, () => {
 });
 
 app.post(
-  "/api/charge",
+  "/api/charges/createCharge",
   requireMerchant,
   async (req: Request, res: Response) => {
     try {
@@ -182,13 +182,6 @@ app.post(
 
       console.log(charge);
       const paymentUrl = `${process.env.BACKEND_URL}/checkout/${chargeId}`;
-      // res.json({
-      //   chargeId: charge.chargeId,
-      //   checkout_url: `${process.env.PUBLIC_BASE_URL}/checkout/${charge.chargeId}`,
-      //   status_url: `${process.env.PUBLIC_BASE_URL}/charges/${charge.chargeId}`,
-      //   events_url: `${process.env.PUBLIC_BASE_URL}/charges/${charge.chargeId}/events`,
-      //   expires_at: expiresAt.toISOString(),
-      // });
       res.status(200).json({ address, charge_id: chargeId, paymentUrl });
     } catch (error) {
       console.log(error);

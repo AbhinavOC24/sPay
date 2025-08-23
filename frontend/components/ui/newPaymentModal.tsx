@@ -55,7 +55,7 @@ export default function NewPaymentModal() {
       setLoading(true);
       const idempotencyKey = crypto.randomUUID();
       const res = await axios.post(
-        `/backend/api/charge`,
+        `/backend/api/charges/createCharge`,
         {
           ...form,
           amount: Number(form.amount), // 👈 convert only here
