@@ -489,6 +489,8 @@ async function processPayoutConfirmed() {
                 }),
               `processPayoutConfirmed:completeNoWebhook:${charge.chargeId}`
             );
+            await publishChargeUpdate(updatedCharge.chargeId);
+
             console.log(`✅ Charge ${charge.chargeId} completed (no webhook)`);
           }
         }

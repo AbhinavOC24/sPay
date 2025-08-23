@@ -39,11 +39,11 @@ export type PublicStatus =
 export function toPublicStatus(s: InternalStatus): PublicStatus {
   switch (s) {
     case "PENDING":
-    case "CONFIRMED":
     case "PAYOUT_INITIATED":
     case "PAYOUT_CONFIRMED":
       return "PENDING";
     case "COMPLETED":
+    case "CONFIRMED":
       return "CONFIRMED"; // after funds hit you, it’s “paid” to the shopper
     case "EXPIRED":
       return "EXPIRED";
