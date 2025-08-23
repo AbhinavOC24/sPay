@@ -1,91 +1,108 @@
-import axios from "axios";
-const HIRO_API_BASE = "https://api.testnet.hiro.so";
+// import axios from "axios";
+// const HIRO_API_BASE = "https://api.testnet.hiro.so";
 
-// export async function waitForTxSuccess(txid: string, timeoutMs = 60_000) {
-//   const end = Date.now() + timeoutMs;
-//   while (Date.now() < end) {
-//     const r = await axios
-//       .get(`${HIRO_API_BASE}/extended/v1/tx/${txid}`)
-//       .then((x) => x.data);
-//     if (r.tx_status === "success") return r;
-//     if (r.tx_status?.startsWith("abort") || r.tx_status === "failed") {
-//       const reason = r.tx_result?.repr ?? r.tx_status;
-//       throw new Error(`payout failed: ${reason}`);
-//     }
-//     await new Promise((res) => setTimeout(res, 3000));
+// function normalizeTxId(txId: string) {
+//   return txId.startsWith("0x") ? txId.slice(2) : txId;
+// }
+// export async function checkTxStatus(txid: string) {
+//   try {
+//     const clean = normalizeTxId(txid);
+
+//     const response = await axios.get(
+//       `${HIRO_API_BASE}/extended/v1/tx/${clean}`,
+//       { timeout: 10000 } // 10 second timeout
+//     );
+
+//     const txData = response.data;
+
+//     console.log(`TX ${clean} status: ${txData.tx_status}`);
+
+//     return {
+//       status: txData.tx_status,
+//       isSuccess: txData.tx_status === "success",
+//       isFailed:
+//         txData.tx_status?.startsWith("abort") || txData.tx_status === "failed",
+//       isPending: !["success", "failed"].some(
+//         (s) => txData.tx_status === s || txData.tx_status?.startsWith("abort")
+//       ),
+//       txData: txData,
+//       failureReason: txData.tx_result?.repr || txData.tx_status,
+//     };
+//   } catch (error) {
+//     console.error(`Error checking tx status for ${txid}:`, error);
+//     // Return unknown status if API call fails
+//     return {
+//       status: "unknown",
+//       isSuccess: false,
+//       isFailed: false,
+//       isPending: true, // Assume pending if we can't check
+//       txData: null,
+//       failureReason: `API error: ${error}`,
+//     };
 //   }
-//   throw new Error("payout pending timeout");
 // }
 
-// ✅ Non-blocking version for state machine
+import axios from "axios";
+const HIRO_API_BASE = "https://api.testnet.hiro.so";
 
 function normalizeTxId(txId: string) {
   return txId.startsWith("0x") ? txId.slice(2) : txId;
 }
-export async function checkTxStatus(txid: string) {
-  try {
-    const clean = normalizeTxId(txid);
 
-    const response = await axios.get(
-      `${HIRO_API_BASE}/extended/v1/tx/${clean}`,
-      { timeout: 10000 } // 10 second timeout
-    );
+export async function checkTxStatus(txid: string, maxAttempts = 5) {
+  const clean = normalizeTxId(txid);
 
-    const txData = response.data;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.get(
+        `${HIRO_API_BASE}/extended/v1/tx/${clean}`,
+        { timeout: 10000, validateStatus: () => true }
+      );
 
-    console.log(`TX ${clean} status: ${txData.tx_status}`);
+      if (response.status === 200) {
+        const txData = response.data;
+        console.log(`TX ${clean} status: ${txData.tx_status}`);
 
-    return {
-      status: txData.tx_status,
-      isSuccess: txData.tx_status === "success",
-      isFailed:
-        txData.tx_status?.startsWith("abort") || txData.tx_status === "failed",
-      isPending: !["success", "failed"].some(
-        (s) => txData.tx_status === s || txData.tx_status?.startsWith("abort")
-      ),
-      txData: txData,
-      failureReason: txData.tx_result?.repr || txData.tx_status,
-    };
-  } catch (error) {
-    console.error(`Error checking tx status for ${txid}:`, error);
-    // Return unknown status if API call fails
-    return {
-      status: "unknown",
-      isSuccess: false,
-      isFailed: false,
-      isPending: true, // Assume pending if we can't check
-      txData: null,
-      failureReason: `API error: ${error}`,
-    };
+        return {
+          status: txData.tx_status,
+          isSuccess: txData.tx_status === "success",
+          isFailed:
+            txData.tx_status?.startsWith("abort") ||
+            txData.tx_status === "failed",
+          isPending: !["success", "failed"].some(
+            (s) =>
+              txData.tx_status === s || txData.tx_status?.startsWith("abort")
+          ),
+          txData,
+          failureReason: txData.tx_result?.repr || txData.tx_status,
+        };
+      }
+
+      if (response.status === 404) {
+        console.log(
+          `⏳ Tx ${clean} not yet indexed (attempt ${attempt}/${maxAttempts})`
+        );
+        await new Promise((r) => setTimeout(r, attempt * 2000)); // 2s, 4s, 6s…
+        continue;
+      }
+
+      throw new Error(`Unexpected status ${response.status}`);
+    } catch (error: any) {
+      console.error(
+        `❌ Error checking tx status for ${clean} (attempt ${attempt}/${maxAttempts}):`,
+        error.message
+      );
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
   }
+
+  // Fallback: if still no result, treat as pending
+  return {
+    status: "unknown",
+    isSuccess: false,
+    isFailed: false,
+    isPending: true,
+    txData: null,
+    failureReason: `Tx ${clean} not found after ${maxAttempts} attempts`,
+  };
 }
-
-// ✅ Original blocking version - keep for other use cases
-// export async function waitForTxSuccess(txid: string, timeoutMs = 60_000) {
-//   const end = Date.now() + timeoutMs;
-
-//   while (Date.now() < end) {
-//     console.log("TXID FROM FUNCTION");
-//     const result = await checkTxStatus(txid);
-//     console.log(result);
-//     if (result.isSuccess) {
-//       console.log(`✅ TX ${txid} succeeded`);
-//       return result.txData;
-//     }
-
-//     if (result.isFailed) {
-//       console.log(`❌ TX ${txid} failed: ${result.failureReason}`);
-//       throw new Error(`Transaction failed: ${result.failureReason}`);
-//     }
-
-//     if (result.status === "unknown") {
-//       console.log(`⚠️ TX ${txid} status unknown, retrying...`);
-//     } else {
-//       console.log(`⏳ TX ${txid} still pending...`);
-//     }
-
-//     await new Promise((res) => setTimeout(res, 3000));
-//   }
-
-//   throw new Error(`Transaction timeout after ${timeoutMs}ms`);
-// }

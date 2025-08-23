@@ -183,7 +183,18 @@ export default function NewPaymentModal() {
               </button>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              <div className="flex justify-end space-x-3">
+                <a
+                  href={paymentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded bg-[#22c55e] text-white hover:bg-[#16a34a]"
+                >
+                  Go to Checkout
+                </a>
+              </div>
+
               <button
                 onClick={async () => {
                   updateNewPaymentModalStatus(false);

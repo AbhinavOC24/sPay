@@ -98,7 +98,7 @@ export function startChargeProcessor() {
     if (isShuttingDown) return;
 
     // Calculate next poll interval with exponential backoff
-    const baseInterval = 30000; // 30 seconds base
+    const baseInterval = Number(process.env.POLL_INTERVAL_MS || 10000); // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
 
@@ -406,7 +406,7 @@ async function processPayoutConfirmed() {
     try {
       if (!charge.payoutTxId) continue;
 
-      const txStatus = await checkTxStatus(charge.payoutTxId);
+      const txStatus = await checkTxStatus(charge.payoutTxId, 5);
 
       if (txStatus.isSuccess) {
         // First, update to PAYOUT_CONFIRMED
@@ -613,9 +613,10 @@ export async function recoverStuckCharges() {
         where: {
           status: "PAYOUT_INITIATED",
           lastProcessedAt: {
-            lt: new Date(Date.now() - 30 * 60 * 1000),
+            lt: new Date(Date.now() - 30 * 60 * 1000), // older than 30 mins
           },
         },
+        include: { merchant: true },
       }),
     "recoverStuckCharges:findMany"
   );
@@ -629,39 +630,81 @@ export async function recoverStuckCharges() {
 
     console.log(`🔧 Checking stuck charge ${charge.chargeId}`);
 
-    if (charge.payoutTxId) {
-      const txStatus = await checkTxStatus(charge.payoutTxId);
+    try {
+      if (charge.payoutTxId) {
+        const txStatus = await checkTxStatus(charge.payoutTxId);
 
-      if (txStatus.isFailed) {
-        await markChargeFailed(
-          charge.chargeId,
-          `Recovery: Transaction failed - ${txStatus.failureReason}`
-        );
-      } else if (txStatus.isSuccess) {
-        await safeDbOperation(
-          () =>
-            prisma.charge.update({
-              where: { id: charge.id },
-              data: {
-                status: "PAYOUT_CONFIRMED",
-                payoutConfirmedAt: new Date(),
-                lastProcessedAt: new Date(),
-              },
-            }),
-          `recoverStuckCharges:recover:${charge.chargeId}`
-        );
+        if (txStatus.isSuccess) {
+          // Tx actually went through
+          await safeDbOperation(
+            () =>
+              prisma.charge.update({
+                where: { id: charge.id },
+                data: {
+                  status: "PAYOUT_CONFIRMED",
+                  payoutConfirmedAt: new Date(),
+                  lastProcessedAt: new Date(),
+                },
+              }),
+            `recoverStuckCharges:confirm:${charge.chargeId}`
+          );
+          console.log(
+            `✅ Recovered charge ${charge.chargeId} - tx ${charge.payoutTxId} was successful`
+          );
+          continue;
+        }
+
+        if (txStatus.isFailed) {
+          console.log(
+            `❌ Tx ${charge.payoutTxId} failed for charge ${charge.chargeId}, rebroadcasting...`
+          );
+        } else {
+          console.log(
+            `⏳ Tx ${charge.payoutTxId} still pending but stuck, rebroadcasting...`
+          );
+        }
+      } else {
         console.log(
-          `🔧 Recovered stuck charge ${charge.chargeId} - transaction was actually successful`
+          `⚠️ Charge ${charge.chargeId} has no payoutTxId, rebroadcasting...`
         );
       }
-    } else {
-      await markChargeFailed(
-        charge.chargeId,
-        "Recovery: Missing transaction ID after 30 minutes"
+
+      // If we got here: failed, missing, or stuck → try re-broadcast
+      if (!charge.privKey || !charge.merchant?.payoutStxAddress) {
+        await markChargeFailed(
+          charge.chargeId,
+          "Recovery failed: missing privKey or payout address"
+        );
+        continue;
+      }
+
+      const { txid: newTxid } = await transferSbtc(
+        charge.privKey,
+        charge.address,
+        charge.merchant.payoutStxAddress,
+        charge.amount
       );
+
+      await safeDbOperation(
+        () =>
+          prisma.charge.update({
+            where: { id: charge.id },
+            data: {
+              payoutTxId: newTxid,
+              lastProcessedAt: new Date(),
+            },
+          }),
+        `recoverStuckCharges:rebroadcast:${charge.chargeId}`
+      );
+
+      console.log(
+        `📤 Re-broadcasted payout for charge ${charge.chargeId}, new txid: ${newTxid}`
+      );
+    } catch (err) {
+      console.error(`❌ Recovery failed for ${charge.chargeId}:`, err);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }
 

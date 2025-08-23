@@ -70,20 +70,6 @@ app.use(
   })
 );
 
-// app.use(
-//   session({
-//     secret: "super-secret-key",
-//     resave: false,
-//     saveUninitialized: false,
-//     cookie: {
-//       secure: process.env.NODE_ENV === "production",
-//       httpOnly: true,
-//       maxAge: 1000 * 60 * 60 * 24 * 7,
-//       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-//     },
-//   })
-// );
-
 dotenv.config();
 
 app.listen(process.env.BACKEND_PORT, () => {
@@ -146,8 +132,8 @@ app.post(
       const chargeId = uuidv4();
       const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
       const rateUsd = await fetchUsdExchangeRate();
-
       const amountUsd = Number(parsed.data.amount) * rateUsd;
+
       const { stxPrivateKey, stxAddress } = await deriveHotWallet(
         process.env.mnemonicString as string
       );
