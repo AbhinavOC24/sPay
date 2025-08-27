@@ -11,6 +11,26 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 - 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.
 - 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.
 
+📖 Documentation
+
+You can explore developer docs in two formats:
+
+GitBook (original) → [spay.gitbook.io/spay-docs](https://spay.gitbook.io/spay-docs/)
+
+Docsify (live on Vercel) → [spay-docs.vercel.app](https://spay-docs.vercel.app/#/)
+
+Both contain:
+
+Getting Started → Overview, Quickstart
+
+Core APIs → Merchant API, Payment API
+
+Integrations → Webhooks, Charge Lifecycle
+
+Charge Lifecycle → State machine, Master wallet funding flow
+
+The Vercel-hosted Docsify site is the canonical source and will stay free + open-source, while GitBook may remain static due to export limitations.
+
 ## 🎥 Demo Video
 
 📺 [Link to 5-min demo](#) (Yet to upload)
