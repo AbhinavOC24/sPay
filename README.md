@@ -11,7 +11,7 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 - 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.
 - 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.
 
-📖 Documentation
+## 📖 Documentation
 
 You can explore developer docs in two formats:
 
