@@ -15,9 +15,9 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 
 You can explore developer docs in two formats:
 
-GitBook (original) → [spay.gitbook.io/spay-docs](https://spay.gitbook.io/spay-docs/)
+[![Docs - Vercel](https://img.shields.io/badge/docs-vercel-blue)](https://spay-docs.vercel.app)
 
-Docsify (live on Vercel) → [spay-docs.vercel.app](https://spay-docs.vercel.app/#/)
+[![Docs - GitBook](https://img.shields.io/badge/docs-gitbook-orange)](https://spay.gitbook.io/spay-docs)
 
 Both contain:
 
