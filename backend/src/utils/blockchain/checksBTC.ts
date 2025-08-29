@@ -2,7 +2,7 @@ const HIRO_API_BASE = "https://api.testnet.hiro.so";
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY = 1000;
 import axios from "axios";
-// Check if an address has enough SBTC balance with retry logic
+// Check if an ephemeral address has enough SBTC balance with retry logic
 export async function hasRequiredSbtcBalance(
   address: string,
   requiredAmount: bigint

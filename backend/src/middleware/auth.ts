@@ -36,7 +36,6 @@ export async function requireMerchant(
     return next();
   }
 
-  // Back-compat: allow x-api-key only (legacy)
   const apiKey = req.header("x-api-key");
   if (apiKey) {
     const merchant = await prisma.merchant.findUnique({

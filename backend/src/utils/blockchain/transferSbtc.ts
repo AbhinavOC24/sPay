@@ -14,7 +14,7 @@ import { STACKS_TESTNET } from "@stacks/network";
 const network = STACKS_TESTNET;
 const SBTC_CONTRACT_ADDRESS = "ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT";
 const SBTC_CONTRACT_NAME = "sbtc-token";
-const ASSET_NAME = "sbtc-token"; // ✅ Added missing constant
+const ASSET_NAME = "sbtc-token";
 const TRANSFER_FN = "transfer";
 
 function asPrincipal(addr: string, label: string) {
@@ -38,7 +38,6 @@ export async function transferSbtc(
   const senderCV = asPrincipal(senderAddress, "senderAddress");
   const recipientCV = asPrincipal(recipientAddress, "recipientAddress");
 
-  // ✅ Create post condition using the modern Pc helper
   const postConditions = [
     Pc.principal(senderAddress)
       .willSendEq(amountMicroSBTC)
@@ -50,10 +49,10 @@ export async function transferSbtc(
     contractName: SBTC_CONTRACT_NAME,
     functionName: TRANSFER_FN,
     functionArgs: [uintCV(amountMicroSBTC), senderCV, recipientCV, noneCV()],
-    senderKey, // ← signs as the temp wallet (tx-sender)
+    senderKey, // signs as the temp wallet (tx-sender)
     network,
     postConditionMode: PostConditionMode.Deny,
-    postConditions, // ✅ properly formatted post conditions
+    postConditions,
   });
 
   const result = await broadcastTransaction({ transaction: tx, network });

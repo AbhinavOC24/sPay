@@ -13,16 +13,13 @@ export async function transferStx(
   amountMicroStx: bigint
 ) {
   try {
-    // 1. Get fee rate
     const feeRateRes = await axios.get(
       "https://api.testnet.hiro.so/v2/fees/transfer"
     );
     const feeRate = Number(feeRateRes.data) || 1;
 
-    // estimate ~180 bytes
     const estimatedFee = BigInt(Math.ceil(feeRate * 180 * 1.2));
 
-    // 2. Build tx
     const tx = await makeSTXTokenTransfer({
       recipient,
       amount: amountMicroStx,
@@ -31,7 +28,6 @@ export async function transferStx(
       fee: estimatedFee,
     });
 
-    // 3. Broadcast
     const result = await broadcastTransaction({ transaction: tx, network });
     console.log("📡 STX transfer broadcast result:", result);
 
@@ -43,7 +39,6 @@ export async function transferStx(
       );
     }
 
-    // ✅ result only has txid here
     return { txid: result.txid };
   } catch (err: any) {
     console.error("❌ transferStx failed:", err.message);

@@ -59,7 +59,7 @@ export function startChargeProcessor() {
 
     try {
       await processPendingCharges();
-      consecutiveFailures = 0; // Reset on success
+      consecutiveFailures = 0;
       console.log(`✅ Processing cycle completed successfully`);
     } catch (error: any) {
       consecutiveFailures++;
@@ -68,7 +68,6 @@ export function startChargeProcessor() {
         error?.message
       );
 
-      // Handle database connection errors specifically
       if (isDatabaseConnectionError(error)) {
         console.log(
           "🔌 Database connection error detected, attempting recovery..."
@@ -106,7 +105,7 @@ export function startChargeProcessor() {
     pollerTimeout = setTimeout(pollWithRetry, nextInterval);
   }
 
-  // Initial health check before starting
+  // Initial health checks
   console.log("🚀 Starting charge processor...");
   checkDatabaseHealth()
     .then((healthy) => {
@@ -143,26 +142,20 @@ export async function processPendingCharges() {
   try {
     await expireOldCharges();
 
-    // Process different statuses separately to ensure proper order
     await processNewPayments(); // PENDING → CONFIRMED
     await processPayoutInitiated(); // CONFIRMED → PAYOUT_INITIATED
     await processPayoutConfirmed(); // PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
   } catch (error) {
     console.error("Error in processPendingCharges:", error);
 
-    // 🔧 CHANGE 8: Handle database connection errors specifically
     if (isDatabaseConnectionError(error)) {
       console.error(
         "Database connection error in main processor, will retry with backoff"
       );
-      throw error; // Let the caller handle the backoff
+      throw error;
     }
   } finally {
     isProcessing = false;
-
-    // 🔧 CHANGE 9: REMOVED automatic $disconnect() - this was causing your crashes!
-    // The old code disconnected on every run, which exhausted connections
-    // Instead, we'll let Prisma manage the connection pool
   }
 }
 
@@ -205,7 +198,6 @@ async function processNewPayments() {
                 include: { merchant: true },
               });
 
-              // Validate prerequisites for payout
               if (!updated.privKey) {
                 throw new Error(
                   `Missing temp wallet privKey for charge ${updated.chargeId}`
@@ -318,7 +310,7 @@ async function processPayoutInitiated() {
         charge.amount
       );
       console.log("TX id form transferSbtc", txid);
-      // 3) Persist txid
+
       const updated = await safeDbOperation(
         () =>
           prisma.charge.update({
@@ -524,14 +516,13 @@ async function processPayoutConfirmed() {
         }
       }
 
-      // Add delay between transaction checks
+      // delay between transaction checks
       await new Promise((resolve) => setTimeout(resolve, 150));
     } catch (error) {
       console.error(
         `❌ Error checking payout confirmation for charge ${charge.chargeId}:`,
         error
       );
-      // Don't mark as failed immediately for connection errors
     }
   }
 }

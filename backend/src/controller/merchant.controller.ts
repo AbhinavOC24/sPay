@@ -215,8 +215,8 @@ export async function createCharge(req: Request, res: Response) {
     const privKey = account.stxPrivateKey;
     const address = getStxAddress(account, "testnet");
 
-    // Calculate amounts
     const chargeId = uuidv4();
+    // Calculate amounts
     const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
     const rateUsd = await fetchUsdExchangeRate();
     const amountUsd = Number(parsed.data.amount) * rateUsd;
@@ -229,7 +229,6 @@ export async function createCharge(req: Request, res: Response) {
     const dynamicFeeBuffer = await calculateFeeBuffer();
     await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
 
-    // Create DB entry
     const TTL_MIN = 15;
     const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
     const charge = await prisma.charge.create({

@@ -20,6 +20,5 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.get("/me", checkDashBoardAuth, me);
 router.get("/charges", checkDashBoardAuth, listCharges);
-// router.post("/charges/createCharge", requireMerchant, createCharge);
 
 export default router;
