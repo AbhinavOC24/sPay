@@ -18,7 +18,7 @@ export default function HomePage() {
   useEffect(() => {
     const checkMerchant = async () => {
       try {
-        const res = await axios.get(`/backend/api/merchants/me`, {
+        const res = await axios.get(`/backend/merchants/me`, {
           withCredentials: true,
         });
 

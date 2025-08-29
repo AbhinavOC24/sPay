@@ -55,7 +55,7 @@ app.use(
   return this.toString();
 };
 
-app.use("/api", merchantRoutes);
+app.use("/merchants", merchantRoutes);
 
 app.use("/charges", chargeRoutes);
 

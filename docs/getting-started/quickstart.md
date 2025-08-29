@@ -22,7 +22,7 @@ started using either the Merchant Dashboard (UI) or the API.
 **Signup**
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/signup \
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/signup \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Coffee Shop",
@@ -55,7 +55,7 @@ Response:
 **Login**
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/login \
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/login \
   -H "Content-Type: application/json" \
   -c cookie.txt \
   -d '{
@@ -82,7 +82,7 @@ Response:
 }
 ```
 
-> 💡 **Tip:** Logging in sets a session cookie (`connect.sid`). Use this cookie for dashboard-only endpoints like `/api/merchants/me`, `/api/merchants/config`, and `/api/merchants/charges`.
+> 💡 **Tip:** Logging in sets a session cookie (`connect.sid`). Use this cookie for dashboard-only endpoints like `/merchants/me`, `/merchants/config`, and `/merchants/charges`.
 
 ---
 
@@ -97,7 +97,7 @@ Before creating charges, set up your:
 This can be done in the **Dashboard** or via API:
 
 ```bash
-curl -X PUT https://stacks-gateway-backend.onrender.com/api/merchants/config \
+curl -X PUT https://stacks-gateway-backend.onrender.com/merchants/config \
   -H "Content-Type: application/json" \
   -b cookie.txt \
   -d '{

@@ -6,14 +6,14 @@ is required for dashboard-only endpoints.
 
 ---
 
-### **POST /api/merchants/signup**
+### **POST /merchants/signup**
 
 Create a new merchant account.
 
 #### Request
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/signup \
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/signup \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Coffee Shop",
@@ -45,7 +45,7 @@ curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/signup \
 
 ---
 
-### **POST /api/merchants/login**
+### **POST /merchants/login**
 
 Authenticate an existing merchant.\
 Sets a `connect.sid` cookie for dashboard endpoints.
@@ -53,7 +53,7 @@ Sets a `connect.sid` cookie for dashboard endpoints.
 #### Request
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/login \
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/login \
   -H "Content-Type: application/json" \
   -c cookie.txt \
   -d '{
@@ -82,7 +82,7 @@ curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/login \
 
 ---
 
-### **PUT /api/merchants/config**
+### **PUT /merchants/config**
 
 Update merchant settings like payout address and webhook configuration.\
 Requires login (`connect.sid` cookie).
@@ -90,7 +90,7 @@ Requires login (`connect.sid` cookie).
 #### Request
 
 ```bash
-curl -X PUT https://stacks-gateway-backend.onrender.com/api/merchants/config \
+curl -X PUT https://stacks-gateway-backend.onrender.com/merchants/config \
   -H "Content-Type: application/json" \
   -b cookie.txt \
   -d '{
@@ -113,14 +113,14 @@ curl -X PUT https://stacks-gateway-backend.onrender.com/api/merchants/config \
 
 ---
 
-### **POST /api/merchants/logout**
+### **POST /merchants/logout**
 
 Destroy the session and clear cookies.
 
 #### Request
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/logout \
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/logout \
   -b cookie.txt
 ```
 
@@ -132,7 +132,7 @@ curl -X POST https://stacks-gateway-backend.onrender.com/api/merchants/logout \
 
 ---
 
-### **GET /api/merchants/me**
+### **GET /merchants/me**
 
 Return details of the authenticated merchant.\
 Requires login (`connect.sid` cookie).
@@ -140,7 +140,7 @@ Requires login (`connect.sid` cookie).
 #### Request
 
 ```bash
-curl -X GET https://stacks-gateway-backend.onrender.com/api/merchants/me \
+curl -X GET https://stacks-gateway-backend.onrender.com/merchants/me \
   -b cookie.txt
 ```
 
@@ -161,7 +161,7 @@ curl -X GET https://stacks-gateway-backend.onrender.com/api/merchants/me \
 
 ---
 
-### **GET /api/merchants/charges**
+### **GET merchants/charges**
 
 List all charges created by the merchant (dashboard view).\
 Requires login (`connect.sid` cookie).
@@ -169,7 +169,7 @@ Requires login (`connect.sid` cookie).
 #### Request
 
 ```bash
-curl -X GET https://stacks-gateway-backend.onrender.com/api/merchants/charges \
+curl -X GET https://stacks-gateway-backend.onrender.com/merchants/charges \
   -b cookie.txt
 ```
 

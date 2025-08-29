@@ -4,7 +4,7 @@ Webhooks let your server get real-time notifications when a charge’s status
 changes (e.g. charge.confirmed, charge.completed). The gateway delivers
 webhook events via POST requests to the URL you con
 
-The gateway delivers webhook events via `POST` requests to the **Webhook URL** you configured in `/api/merchants/config`.
+The gateway delivers webhook events via `POST` requests to the **Webhook URL** you configured in `/merchants/config`.
 
 This is also where the **webhookSecret** you set comes into play — it’s used by the gateway to generate the `X-SBTC-Signature` header, and by your server to verify authenticity.
 

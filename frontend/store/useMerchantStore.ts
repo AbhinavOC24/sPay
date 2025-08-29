@@ -53,7 +53,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
   fetchMerchant: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await axios.get(`/backend/api/merchants/me`, {
+      const res = await axios.get(`/backend/merchants/me`, {
         withCredentials: true,
       });
       set({ merchant: res.data });
@@ -67,7 +67,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
   fetchCharges: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await axios.get(`backend/api/merchants/charges`, {
+      const res = await axios.get(`backend/merchants/charges`, {
         withCredentials: true,
       });
       set({ charges: res.data.charges });
@@ -82,7 +82,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `/backend/api/merchants/signup`,
+        `/backend/merchants/signup`,
         { name, email, password },
         { withCredentials: true }
       );
@@ -100,7 +100,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `backend/api/merchants/login`,
+        `backend/merchants/login`,
         { email, password },
         { withCredentials: true }
       );
@@ -118,7 +118,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(
-        `backend/api/merchants/logout`,
+        `backend/merchants/logout`,
         {},
         { withCredentials: true }
       );
@@ -145,7 +145,7 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
       if (webhookUrl) body.webhookUrl = webhookUrl;
       if (webhookSecret) body.webhookSecret = webhookSecret;
 
-      const res = await fetch(`/backend/api/merchants/config`, {
+      const res = await fetch(`/backend/merchants/config`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
