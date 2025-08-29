@@ -15,10 +15,9 @@ sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses ac
 
 You can explore developer docs in two formats:
 
-[👉 View Docs (Vercel)](https://spay-docs.vercel.app)  
+[👉 View Docs (Vercel)](https://spay-docs.vercel.app)
 
 [👉 View Docs (GitBook)](https://spay.gitbook.io/spay-docs)
-
 
 Both contain:
 
@@ -51,7 +50,7 @@ The Vercel-hosted Docsify site is the canonical source and will stay free + open
 
 - **Backend**: Node.js, Express, Prisma, PostgreSQL
 - **Blockchain**: Stacks.js, sBTC testnet
-- **Frontend (Merchant Dashboard)**: Next.js 
+- **Frontend (Merchant Dashboard)**: Next.js
 - **Frontend (Checkout)**: Vanilla HTML/CSS/JS
 - **Infra**: EventSource (SSE) + polling fallback
 - **Security**: HMAC webhook signing, API key + secret auth
@@ -132,7 +131,7 @@ npm run dev
 ### Create Charge
 
 ```bash
-curl -X POST http://localhost:8000/api/charge \
+curl -X POST http://localhost:8000/charges/createCharge \
   -H "X-API-Key: <merchant-api-key>" \
   -d '{
     "amount": 0.001,
@@ -146,6 +145,7 @@ curl -X POST http://localhost:8000/api/charge \
 ✅ Returns a hosted checkout link, STX address of ephemeral account and chargeId.
 
 **Optional Parameters:**
+
 - `manual`: Set to `true` for manual payment processing (optional)
 - `order_id`: Your internal order identifier
 
@@ -154,6 +154,7 @@ curl -X POST http://localhost:8000/api/charge \
 Merchants can register a `webhook_url` + `webhook_secret`. Events are signed with HMAC and include additional headers for security and idempotency.
 
 ### Webhook Headers
+
 - `X-SBTC-Signature`: HMAC-SHA256 signature (`sha256=...`)
 - `X-SBTC-Event-Id`: Unique event identifier for deduplication
 - `X-SBTC-Event-Timestamp`: ISO timestamp for replay protection
@@ -173,7 +174,8 @@ const WEBHOOK_SECRET = "your-webhook-secret";
 const processed = new Set(); // In prod, use Redis/DB with TTL
 
 function verifyHmac(raw, sigHeader, secret) {
-  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+  const expected =
+    "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
   if (!sigHeader || expected.length !== sigHeader.length) return false;
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sigHeader));
 }
@@ -209,6 +211,7 @@ app.post("/webhook", (req, res) => {
 ```
 
 ### Event Types
+
 - `charge.completed`: Payment successfully received and confirmed
 
 ## 🔒 Security Notes
@@ -216,7 +219,6 @@ app.post("/webhook", (req, res) => {
 - Never expose your `apiSecret` and `apiKey` client-side.
 - Webhooks must be verified with HMAC.
 - Sessions/cookies are merchant-side; API uses key+secret.
-
 
 ## 📜 License
 

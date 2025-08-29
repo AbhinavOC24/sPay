@@ -163,7 +163,7 @@ Parameters:
 #### Example (Preferred Auth + Idempotency)
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/charges/createCharge \
+curl -X POST https://stacks-gateway-backend.onrender.com/charges/createCharge \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer pk_live_abc:sk_live_xyz" \
   -H "Idempotency-Key: order-1001" \

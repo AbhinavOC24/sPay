@@ -7,6 +7,8 @@ import {
   checkoutPage,
   getCharge,
 } from "../controller/charge.controller";
+import { requireMerchant } from "../middleware/auth";
+import { createCharge } from "../controller/merchant.controller";
 
 const router = Router();
 
@@ -15,5 +17,6 @@ router.get("/:id/events", chargeEvents);
 router.get("/:id/qr.png", chargeQr);
 router.get("/checkout/:id", checkoutPage);
 router.post("/:id/cancel", cancelCharge);
+router.post("/createCharge", requireMerchant, createCharge);
 
 export default router;

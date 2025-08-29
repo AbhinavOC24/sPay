@@ -20,6 +20,6 @@ router.post("/merchants/login", login);
 router.post("/merchants/logout", logout);
 router.get("/merchants/me", checkDashBoardAuth, me);
 router.get("/merchants/charges", checkDashBoardAuth, listCharges);
-router.post("/charges/createCharge", requireMerchant, createCharge);
+// router.post("/charges/createCharge", requireMerchant, createCharge);
 
 export default router;

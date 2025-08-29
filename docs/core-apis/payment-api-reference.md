@@ -6,7 +6,7 @@ to prevent duplicate charges.
 
 ---
 
-### **POST /api/charges/createCharge** — Create Charge
+### **POST /charges/createCharge** — Create Charge
 
 Create a new sBTC payment request.
 
@@ -34,7 +34,7 @@ Parameters:
 #### Request
 
 ```bash
-curl -X POST https://stacks-gateway-backend.onrender.com/api/charge \
+curl -X POST https://stacks-gateway-backend.onrender.com/charges/createCharge \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer pk_live_abc:sk_live_xyz" \
   -H "Idempotency-Key: unique-key-001" \

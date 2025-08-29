@@ -32,7 +32,7 @@ are delivered reliably, and stuck charges don’t han
 #### 1. **PENDING**
 
 - **How it gets here**:\
-  Created via `/api/charge` (awaiting customer to pay sBTC).
+  Created via `/charges/createCharge` (awaiting customer to pay sBTC).
 - **What happens**:
   - Temp wallet address generated.
   - Charge expires in 15 min (TTL).
