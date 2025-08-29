@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useEffect } from "react";
-import { useMerchantStore } from "@/store/useMerchantStore";
 import axios from "axios";
 
 import { useRouter } from "next/navigation";
