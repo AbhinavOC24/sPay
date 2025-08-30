@@ -106,6 +106,22 @@ src
 └── express.d.ts          # Type declarations
 ```
 
+### ⚙️ Charge Processor  
+
+sPay runs a background **charge processor** service that polls the database every ~30 seconds.  
+
+- ⏱ **Interval** – runs continuously on a 30s cycle (with backoff + retries).  
+- 🔄 **State machine** – moves charges through their lifecycle:  
+  - PENDING → CONFIRMED (payment detected)  
+  - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)  
+  - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)  
+  - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)  
+- 🧰 **Error handling** – retries on failures, marks charges as FAILED if unrecoverable.  
+- 🩺 **DB resilience** – if the database restarts or loses connection, the processor automatically attempts recovery.  
+- 🔧 **Stuck charge recovery** – detects and re-broadcasts stuck or timed-out payouts.  
+
+👉 This ensures charges are always reconciled automatically, even if network issues or temporary errors occur.  
+
 ## ⚡ Quickstart
 
 ### 1. Clone & Install
