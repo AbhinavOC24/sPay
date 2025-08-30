@@ -127,7 +127,7 @@ sPay runs a background **charge processor** service that polls the database ever
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/YOURNAME/spay.git
+git clone git@github.com:AbhinavOC24/sPay.git
 cd backend
 npm install
 cd ../frontend
