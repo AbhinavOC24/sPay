@@ -69,7 +69,6 @@ This ensures merchants always receive their full sBTC amount without needing to 
 - **No merchant exposure** – merchants never need to expose or share their payout wallet in checkout flows.  
 - **Cleaner accounting** – easy to track and reconcile charges, since each wallet maps 1:1 with a payment session.  
 - **Automatic sweep** – funds are forwarded to the merchant payout wallet once confirmed, keeping temp wallets empty long term.  
-- **Gas management built-in** – master wallet seeds the temp wallet with just enough STX for fees, then recovers it if unused.  
 - **Improved security posture** – reduces the chance of replay or double-spend attacks against a merchant’s main wallet.  
 
 ## 🎥 Demo Video
