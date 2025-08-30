@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState } from "react";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMerchantStore } from "@/store/useMerchantStore";
-
+import left_bg from "../../public/login_left.svg";
+import Image from "next/image";
 export default function LoginPage() {
   const router = useRouter();
 
@@ -67,29 +69,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0d10] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-[#12161b] border-gray-800">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#e6edf3]">
+    <div className="min-h-screen bg-[#101010] flex items-center justify-center p-4">
+      <Image src={left_bg} alt="IMg" height={588} />
+      <div className="px-16 py-36  bg-[#1D1D1D]  border border-[#8787873f] flex flex-col justify-center items-center gap-8">
+        <div className="   w-full flex flex-col justify-center items-center">
+          <div className="text-3xl font-bold text-center w-full text-[#e6edf3]">
             Welcome Back
-          </CardTitle>
-          <CardDescription className="text-[#9aa4b2]">
+          </div>
+          <div className="text-[#9aa4b2]   text-[16px] text-center w-full">
             Sign in to your merchant dashboard
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </div>
+        </div>
+        <div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[#e6edf3]">
-                Email Address
-              </Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="bg-[#0b0d10] border-gray-700 text-[#e6edf3] placeholder:text-[#9aa4b2] focus:border-[#22c55e] focus:ring-[#22c55e]"
+                className="bg-[#383838]  w-80 h-11 border-[#8787873f] text-[#e6edf3] placeholder:text-[#9aa4b2] focus:border-[#22c55e] focus:ring-[#22c55e]"
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -98,16 +98,13 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[#e6edf3]">
-                Password
-              </Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="bg-[#0b0d10] border-gray-700 text-[#e6edf3] placeholder:text-[#9aa4b2] focus:border-[#22c55e] focus:ring-[#22c55e]"
+                className="border border-[#8787873f] w-80 h-11 text-[#e6edf3] placeholder:text-[#9aa4b2] focus:border-[#22c55e] focus:ring-[#22c55e]"
                 placeholder="Enter your password"
               />
               {errors.password && (
@@ -122,7 +119,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={storeLoading}
-              className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white font-medium py-2.5 transition-colors duration-200"
+              className="w-80 h-11 bg-[#F56E0F] hover:bg-[#f56f0fd2] text-white font-medium py-2.5 transition-colors duration-200"
             >
               {storeLoading ? "Signing In..." : "Sign In"}
             </Button>
@@ -133,23 +130,14 @@ export default function LoginPage() {
               Don't have an account?{" "}
               <Link
                 href="/signup"
-                className="text-[#22c55e] hover:text-[#16a34a] font-medium transition-colors duration-200"
+                className="text-[#F56E0F] hover:text-[#f56f0fba] font-medium transition-colors duration-200"
               >
                 Create one
               </Link>
             </p>
           </div>
-
-          <div className="mt-4 text-center">
-            <Link
-              href="/forgot-password"
-              className="text-[#9aa4b2] hover:text-[#e6edf3] text-sm transition-colors duration-200"
-            >
-              Forgot your password?
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

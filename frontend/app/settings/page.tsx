@@ -85,9 +85,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0d10]">
+    <div className="min-h-screen bg-black">
       {/* Top Navigation */}
-      <header className="bg-[#12161b] border-b border-gray-800 px-6 py-4">
+      <header className="bg-[#131313] border-b  border-[#8787873f] px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button
@@ -98,7 +98,7 @@ export default function SettingsPage() {
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#F56E0F] rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">₿</span>
             </div>
             <div>
@@ -111,7 +111,7 @@ export default function SettingsPage() {
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="bg-transparent border-gray-700 text-[#9aa4b2] hover:bg-[#0b0d10] hover:text-[#e6edf3]"
+            className="bg-transparent border-[#8787873f] text-[#9aa4b2] hover:bg-[#0b0d10] hover:text-[#e6edf3]"
           >
             Logout
           </Button>
@@ -121,7 +121,7 @@ export default function SettingsPage() {
       {/* Main Content */}
       <main className="p-6 max-w-4xl mx-auto">
         {/* API Credentials */}
-        <Card className="bg-[#12161b] border-gray-800 mb-8">
+        <Card className="bg-[#1D1D1D] border border-[#8787873f] mb-8">
           <CardHeader>
             <CardTitle className="text-[#e6edf3] text-xl">
               API Credentials
@@ -139,7 +139,7 @@ export default function SettingsPage() {
                   type={showApiKey ? "text" : "password"}
                   value={apiCredentials.apiKey}
                   readOnly
-                  className="bg-[#0b0d10] border-gray-700 text-[#e6edf3] pr-20 font-mono text-sm"
+                  className="bg-[#0b0d10] border-[#8787873f] text-[#e6edf3] pr-20 font-mono text-sm"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                   <Button
@@ -163,7 +163,7 @@ export default function SettingsPage() {
                     className="h-8 w-8 p-0 text-[#9aa4b2]"
                   >
                     {copiedField === "apiKey" ? (
-                      <Check className="w-4 h-4 text-[#22c55e]" />
+                      <Check className="w-4 h-4 text-[#ff8025]" />
                     ) : (
                       <Copy className="w-4 h-4" />
                     )}
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                   type={showApiSecret ? "text" : "password"}
                   value={apiCredentials.apiSecret}
                   readOnly
-                  className="bg-[#0b0d10] border-gray-700 text-[#e6edf3] pr-20 font-mono text-sm"
+                  className="bg-[#0b0d10] border-[#8787873f] text-[#e6edf3] pr-20 font-mono text-sm"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                   <Button
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                     className="h-8 w-8 p-0 text-[#9aa4b2]"
                   >
                     {copiedField === "apiSecret" ? (
-                      <Check className="w-4 h-4 text-[#22c55e]" />
+                      <Check className="w-4 h-4 text-[#F56E0F]" />
                     ) : (
                       <Copy className="w-4 h-4" />
                     )}
@@ -216,7 +216,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Config Fields */}
-        <Card className="bg-[#12161b] border-gray-800">
+        <Card className="bg-[#1D1D1D] border border-[#8787873f]">
           <CardHeader>
             <CardTitle className="text-[#e6edf3] text-xl">
               Webhook & Payout Settings
@@ -261,14 +261,14 @@ export default function SettingsPage() {
                       onChange={handleWebhookChange}
                       placeholder={field.placeholder}
                       readOnly={!isEditing}
-                      className={`bg-[#0b0d10] border-gray-700 text-[#e6edf3] ${
+                      className={`bg-[#0b0d10] border-[#8787873f] text-[#e6edf3] ${
                         !isEditing ? "opacity-75" : ""
                       }`}
                     />
                     {isEditing ? (
                       <Button
                         size="sm"
-                        className="bg-[#22c55e] hover:bg-[#16a34a] text-white"
+                        className="bg-[#F56E0F] hover:bg-[#f56f0fdc] text-white"
                         onClick={saveField}
                         disabled={isSaving}
                       >
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-gray-700 text-[#9aa4b2] hover:text-[#e6edf3]"
+                        className="border-[#8787873f] text-[#9aa4b2] hover:text-[#e6edf3]"
                         onClick={() => setEditingField(field.name)}
                       >
                         Edit

@@ -34,10 +34,10 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#101010]">
+      <Card className="w-full max-w-md bg-[#1D1D1D] border border-[#8787873f] ">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-2xl font-bold text-[#BDBDBD] ">
             sBTC Merchant Portal
           </CardTitle>
           <CardDescription>
@@ -45,11 +45,15 @@ export default function HomePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button asChild className="w-full">
-            <Link href="/login">Login to Dashboard</Link>
+          <Button asChild className="w-full bg-[#F56E0F] hover:bg-[#f56f0fd1]">
+            <Link href="/login" className="text-white">
+              Login to Dashboard
+            </Link>
           </Button>
-          <Button asChild variant="outline" className="w-full bg-transparent">
-            <Link href="/signup">Create Merchant Account</Link>
+          <Button asChild className="w-full bg-[#383838] hover:bg-[#464646]">
+            <Link href="/signup" className="text-white">
+              Create Merchant Account
+            </Link>
           </Button>
         </CardContent>
       </Card>

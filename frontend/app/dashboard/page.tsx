@@ -110,7 +110,7 @@ export default function DashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
-        return <Badge className="bg-[#22c55e] text-white">Completed</Badge>;
+        return <Badge className="bg-[#22C55E] text-white">Completed</Badge>;
       case "pending":
         return <Badge className="bg-[#f59e0b] text-white">Pending</Badge>;
       case "failed":
@@ -131,12 +131,12 @@ export default function DashboardPage() {
     );
   }
   return (
-    <div className="min-h-screen bg-[#0b0d10]">
+    <div className="min-h-screen bg-[#101010]">
       {/* Header */}
-      <header className="bg-[#12161b] border-b border-gray-800 px-6 py-4">
+      <header className="bg-[#1D1D1D] border-b border-[#1d1d1da4] px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-8 h-8 bg-[#22c55e] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#F56E0F] rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">₿</span>
             </div>
             <div>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
               onClick={() => router.push("/settings")}
               variant="outline"
               size="sm"
-              className="bg-transparent border-gray-700 text-[#9aa4b2] hover:text-[#e6edf3]"
+              className="bg-transparent border-[#8787873f] text-[#9aa4b2] hover:text-[#e6edf3]"
             >
               <Settings className="w-4 h-4 mr-2" />
               Settings
@@ -161,7 +161,7 @@ export default function DashboardPage() {
             <Button
               onClick={handleLogout}
               variant="outline"
-              className="bg-transparent border-gray-700 text-[#9aa4b2] hover:text-[#e6edf3]"
+              className="bg-transparent border-[#8787873f] text-[#9aa4b2] hover:text-[#e6edf3]"
             >
               Logout
             </Button>
@@ -174,7 +174,7 @@ export default function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Total Payments */}
-          <Card className="bg-[#12161b] border-gray-800">
+          <Card className="bg-[#1D1D1D] border-[#8787873f]">
             <CardHeader>
               <CardTitle className="text-[#e6edf3] text-lg font-medium">
                 Total Payments
@@ -194,7 +194,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Pending Payouts */}
-          <Card className="bg-[#12161b] border-gray-800">
+          <Card className="bg-[#1D1D1D] border-[#8787873f]">
             <CardHeader>
               <CardTitle className="text-[#e6edf3] text-lg font-medium">
                 Pending Payouts
@@ -214,14 +214,14 @@ export default function DashboardPage() {
           </Card>
 
           {/* Total sBTC Received */}
-          <Card className="bg-[#12161b] border-gray-800">
+          <Card className="bg-[#1D1D1D] border-[#8787873f]">
             <CardHeader>
               <CardTitle className="text-[#e6edf3] text-lg font-medium">
                 Total sBTC Received
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-[#22c55e]">
+              <p className="text-2xl font-bold text-[#22C55E]">
                 {stats.totalReceived.btc.toFixed(8)}
               </p>
               <p className="text-[#e6edf3] font-medium">
@@ -234,14 +234,14 @@ export default function DashboardPage() {
           </Card>
         </div>
         <div
-          className="bg-[#22c55e]  rounded-xl px-4 py-2 w-fit mb-4 cursor-pointer"
+          className="bg-[#F56E0F]  rounded-xl px-4 py-2 w-fit mb-4 cursor-pointer"
           onClick={() => updateNewPaymentModalStatus(true)}
         >
           Create a Payment
         </div>
 
         {/* Transactions Table */}
-        <Card className="bg-[#12161b] border-gray-800">
+        <Card className="bg-[#1D1D1D] border-[#8787873f]">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-[#e6edf3] text-xl">
@@ -250,10 +250,10 @@ export default function DashboardPage() {
               <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-[#9aa4b2]" />
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px] bg-[#0b0d10] border-gray-700 text-[#e6edf3]">
+                  <SelectTrigger className="w-[140px] bg-[#0B0D10] border-[#8787873f] text-[#e6edf3]">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#12161b] border-gray-700">
+                  <SelectContent className="bg-[#1D1D1D] border-[#8787873f]">
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
@@ -270,7 +270,7 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-700">
+                  <tr className="border-b border-[#8787873f]">
                     <th className="text-left py-3 px-4 text-[#9aa4b2]">
                       Charge ID
                     </th>
@@ -289,7 +289,7 @@ export default function DashboardPage() {
                   {filteredTransactions.map((t) => (
                     <tr
                       key={t.chargeId}
-                      className="border-b border-gray-800 hover:bg-[#1a1f26]"
+                      className="border-b border-[#8787873f] hover:bg-[#1a1f26]"
                     >
                       <td className="py-3 px-4 text-[#e6edf3]  text-sm">
                         {t.chargeId}
