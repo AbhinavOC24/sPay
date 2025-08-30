@@ -35,6 +35,34 @@ Charge Lifecycle → State machine, Master wallet funding flow
 
 The Vercel-hosted Docsify site is the canonical source and will stay free + open-source, while GitBook may remain static due to export limitations.
 
+## 🔄 Payment Pipeline
+
+The lifecycle of a charge looks like this:
+
+```text
+Customer
+   │
+   ▼
+Ephemeral (Temp) Wallet ← (funded with STX gas fees by Master Wallet)
+   │
+   ▼
+Merchant Payout Wallet (sBTC forwarded)
+   │
+   ▼
+Webhook Delivery (if configured)
+```
+
+## Note on Wallet Funding
+
+For each charge, the master wallet pre-funds the temporary wallet with a small amount of STX.
+This STX is required to pay gas fees when transferring received sBTC from the temp wallet to the merchant’s payout wallet.
+
+If the customer completes the payment, the temp wallet forwards the sBTC to the merchant’s payout address (using the funded STX for fees).
+
+If the customer cancels or the charge expires, the pre-funded STX is automatically refunded back to the master wallet.
+
+This ensures merchants always receive their full sBTC amount without needing to manage gas or fee balances themselves.
+
 ## 🎥 Demo Video
 
 📺 [Link to 5-min demo](#) (Yet to upload)
