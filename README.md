@@ -63,6 +63,15 @@ If the customer cancels or the charge expires, the pre-funded STX is automatical
 
 This ensures merchants always receive their full sBTC amount without needing to manage gas or fee balances themselves.
 
+### 🔐 Advantages of Using Temporary (Ephemeral) Wallets
+
+- **Per-charge isolation** – each customer payment uses its own wallet, minimizing blast radius if compromised.  
+- **No merchant exposure** – merchants never need to expose or share their payout wallet in checkout flows.  
+- **Cleaner accounting** – easy to track and reconcile charges, since each wallet maps 1:1 with a payment session.  
+- **Automatic sweep** – funds are forwarded to the merchant payout wallet once confirmed, keeping temp wallets empty long term.  
+- **Gas management built-in** – master wallet seeds the temp wallet with just enough STX for fees, then recovers it if unused.  
+- **Improved security posture** – reduces the chance of replay or double-spend attacks against a merchant’s main wallet.  
+
 ## 🎥 Demo Video
 
 📺 [Link to 5-min demo](#) (Yet to upload)
