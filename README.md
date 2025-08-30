@@ -63,38 +63,47 @@ The Vercel-hosted Docsify site is the canonical source and will stay free + open
 
 ```
 src
-├── db/                  # Prisma client (singleton)
-├── middleware/          # Auth middleware (API key + secret)
-├── public/              # Static checkout pages
+├── controller/           # Controllers for routes
+│   ├── charge.controller.ts
+│   └── merchant.controller.ts
+├── db/                   # Prisma client (singleton)
+│   └── index.ts
+├── middleware/           # Auth middleware (API key + secret)
+│   └── auth.ts
+├── mock-webhook-server.ts # Local test server for webhook dev
+├── public/               # Static checkout pages
 │   ├── checkout.html
 │   ├── checkout.css
 │   ├── checkout.js
 │   └── expired.html
-├── types/               # Shared TS types
+├── routes/               # Express routers
+│   ├── charge.routes.ts
+│   └── merchant.routes.ts
+├── types/                # Shared TS types
+│   └── types.ts
 ├── utils/
-│   ├── blockchain/      # Blockchain helpers (sBTC + STX)
+│   ├── blockchain/       # Blockchain helpers (sBTC + STX)
 │   │   ├── checksBTC.ts
 │   │   ├── checkTxStatus.ts
 │   │   ├── deriveHotWallet.ts
 │   │   ├── fetchUsdExchangeRate.ts
 │   │   ├── transferSbtc.ts
 │   │   └── transferStx.ts
-│   ├── dbChecker/       # DB health monitor
+│   ├── dbChecker/        # DB health monitor
 │   │   └── dbChecker.ts
-│   ├── payment/         # Core payment state machine + helpers
-│   │   ├── chargeProcessor.ts
-│   │   ├── deliverChargeWebhook.ts
-│   │   ├── feeCalculator.ts
-│   │   ├── markChargeFailed.ts
-│   │   ├── publicPayloadBuilder.ts
-│   │   └── publishChargeUpdate.ts
-│   ├── eventBus.ts      # Internal event bus (SSE + updates)
-│   └── keys.ts          # Key generators
-├── zod/                 # Input validation schemas
+│   ├── eventBus.ts       # Internal event bus (SSE + updates)
+│   ├── keys.ts           # Key generators
+│   └── payment/          # Core payment state machine + helpers
+│       ├── chargeProcessor.ts
+│       ├── deliverChargeWebhook.ts
+│       ├── feeCalculator.ts
+│       ├── markChargeFailed.ts
+│       ├── publicPayloadBuilder.ts
+│       └── publishChargeUpdate.ts
+├── zod/                  # Input validation schemas
 │   └── zodCheck.ts
-├── mock-webhook-server.ts # Local test server for webhook dev
-├── index.ts             # Express entrypoint
-└── express.d.ts         # Type declarations
+├── index.ts              # Express entrypoint
+└── express.d.ts          # Type declarations
 ```
 
 ## ⚡ Quickstart
@@ -130,32 +139,40 @@ cd backend
 npm run dev
 ```
 
-## 🔑 API Reference
+### 4. Frontend Enviroment Setup
 
-### Create Charge
-
-```bash
-curl -X POST http://localhost:8000/charges/createCharge \
-  -H "X-API-Key: <merchant-api-key>" \
-  -d '{
-    "amount": 0.001,
-    "success_url": "https://merchant.com/success",
-    "cancel_url": "https://merchant.com/cancel",
-    "order_id": "axcdea",
-    "manual": true
-  }'
+```env
+NEXT_PUBLIC_BACKEND_URL=
 ```
 
-✅ Returns a hosted checkout link, STX address of ephemeral account and chargeId.
+### 5. Run Frontend
 
-**Optional Parameters:**
+```bash
+cd frontend
+npm run dev
+```
 
-- `manual`: Set to `true` for manual payment processing (optional)
-- `order_id`: Your internal order identifier
+## 🔑 API Reference
+
+For the complete API reference, see the [Developer Docs](https://spay-docs.vercel.app).
+
+**IMPORTANT**
+
+When creating charges:
+
+Use the Authorization header instead of custom headers:
+
+Authorization: Bearer <apiKey>:<apiSecret>
+
+Every request should also include an Idempotency-Key header to prevent duplicate charges on retries:
+
+Idempotency-Key: <unique-uuid>
 
 ## 📡 Webhooks
 
 Merchants can register a `webhook_url` + `webhook_secret`. Events are signed with HMAC and include additional headers for security and idempotency.
+
+⚠️ Note: Charges created via the dashboard do not trigger webhook events. Only charges created via the API will emit webhooks.
 
 ### Webhook Headers
 
