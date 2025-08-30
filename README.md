@@ -5,11 +5,15 @@
 
 ## 📌 What is sPay?
 
-sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses accept Bitcoin payments seamlessly via the Stacks blockchain, with the UX simplicity of Stripe.
+sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses accept sBTC payments seamlessly via the Stacks blockchain, with the UX simplicity of Stripe.
 
 - ⚡ **Fast setup** – create charges via API, redirect customers to checkout, and receive webhooks.
-- 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.
-- 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.
+- 🔄 **Stripe-like state machine** – charges flow through a well-defined lifecycle, ensuring consistency and reliability.  
+- 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.  
+- 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.  
+- ♻️ **Idempotent design** – charge creation and webhook delivery are idempotent, preventing duplicates.  
+- ⚙️ **Atomic operations** – ensures payment status updates, transfers, and webhooks stay consistent.  
+- 🩺 **DB resilience** – automatic checks and recovery if the database restarts, errors, or drops connections.  
 
 ## 📖 Documentation
 
@@ -37,19 +41,19 @@ The Vercel-hosted Docsify site is the canonical source and will stay free + open
 
 ## 🚀 Features
 
-- Create **charges** via REST API
-- Hosted **checkout page** with QR code + live status
-- Auto-transfer from **temp wallet → merchant payout wallet**
-- **Webhook delivery** with HMAC signatures
-- Handles expiry, cancellation, and underpayment
-- sBTC → USD conversion (for reference pricing)
-- Polished expired/checkout states
-- Retry logic for payouts & webhooks
+- **Stripe-like state machine** – ensures reliable charge lifecycle management  
+- Hosted **checkout page** with QR code + live status  
+- Auto-transfer from **temp wallet → merchant payout wallet**  
+- **Webhook delivery** with HMAC signatures  
+- Handles **expiry, cancellation, and underpayment**  
+- **sBTC → USD conversion** (for reference pricing)  
+- Polished **expired/checkout states**  
+- **Retry logic** for payouts & webhooks  
 
 ## 🛠️ Tech Stack
 
 - **Backend**: Node.js, Express, Prisma, PostgreSQL
-- **Blockchain**: Stacks.js, sBTC testnet
+- **Blockchain**: Stacks
 - **Frontend (Merchant Dashboard)**: Next.js
 - **Frontend (Checkout)**: Vanilla HTML/CSS/JS
 - **Infra**: EventSource (SSE) + polling fallback
