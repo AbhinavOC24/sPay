@@ -3,7 +3,6 @@ import { checkDashBoardAuth } from "../middleware/auth";
 
 import { requireMerchant } from "../middleware/auth";
 import {
-  createCharge,
   listCharges,
   login,
   logout,

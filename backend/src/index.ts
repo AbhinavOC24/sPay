@@ -13,7 +13,7 @@ import {
 } from "./utils/payment/chargeProcessor";
 import merchantRoutes from "./routes/merchant.routes";
 import chargeRoutes from "./routes/charge.routes";
-import { checkoutPage } from "./controller/charge.controller";
+
 import router from "./routes/charge.routes";
 
 const app = express();

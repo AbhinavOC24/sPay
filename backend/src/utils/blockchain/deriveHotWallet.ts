@@ -5,7 +5,7 @@ export async function deriveHotWallet(mnemonic: string) {
     secretKey: mnemonic,
     password: "hackathon",
   });
-  const account = wallet.accounts[0]; // first account
+  const account = wallet.accounts[0];
   if (!account) throw new Error("No account[0] in wallet");
   return {
     stxPrivateKey: account.stxPrivateKey,

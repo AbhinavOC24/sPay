@@ -3,18 +3,6 @@ import prisma from "../db";
 import bcrypt from "bcryptjs";
 import { merchantSignupSchema, merchantLoginSchema } from "../zod/zodCheck";
 import { genApiKey, genApiSecret } from "../utils/keys";
-import {
-  generateWallet,
-  getStxAddress,
-  generateSecretKey,
-} from "@stacks/wallet-sdk";
-import { v4 as uuidv4 } from "uuid";
-
-import fetchUsdExchangeRate from "../utils/blockchain/fetchUsdExchangeRate";
-import { deriveHotWallet } from "../utils/blockchain/deriveHotWallet";
-import { transferStx } from "../utils/blockchain/transferStx";
-import { calculateFeeBuffer } from "../utils/payment/feeCalculator";
-import { paymentSchema } from "../zod/zodCheck";
 
 export async function updateConfig(req: Request, res: Response) {
   const { payoutStxAddress, webhookUrl, webhookSecret } = req.body;
@@ -176,81 +164,5 @@ export async function listCharges(req: Request, res: Response) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "fetch_charges_failed" });
-  }
-}
-
-export async function createCharge(req: Request, res: Response) {
-  try {
-    const key = req.get("Idempotency-Key");
-    if (!key) return res.status(400).json({ error: "missing_idempotency_key" });
-    if (!req.merchant) return res.status(401).json({ error: "unauthorized" });
-
-    // Prevent duplicates
-    const existing = await prisma.charge.findUnique({
-      where: {
-        merchantid_idempotencyKey: {
-          merchantid: req.merchant.id,
-          idempotencyKey: key,
-        },
-      },
-    });
-    if (existing) return res.json({ error: "duplicate_charge" });
-
-    // Validate input
-    const parsed = paymentSchema.safeParse(req.body);
-    if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.message });
-
-    const merchant = req.merchant;
-    if (!merchant) return;
-
-    // Generate temp wallet
-    const newWallet = await generateWallet({
-      secretKey: generateSecretKey(),
-      password: process.env.password as string,
-    });
-    const account = newWallet.accounts[0];
-    if (!account) return res.status(500).json({ error: "wallet_error" });
-
-    const privKey = account.stxPrivateKey;
-    const address = getStxAddress(account, "testnet");
-
-    const chargeId = uuidv4();
-    // Calculate amounts
-    const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
-    const rateUsd = await fetchUsdExchangeRate();
-    const amountUsd = Number(parsed.data.amount) * rateUsd;
-
-    // Top up fee buffer
-    const { stxPrivateKey, stxAddress } = await deriveHotWallet(
-      process.env.mnemonicString as string
-    );
-    console.log("hotWallet address", stxAddress);
-    const dynamicFeeBuffer = await calculateFeeBuffer();
-    await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
-
-    const TTL_MIN = 15;
-    const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
-    const charge = await prisma.charge.create({
-      data: {
-        chargeId,
-        address,
-        privKey,
-        amount: microAmount,
-        success_url: parsed.data.success_url,
-        cancel_url: parsed.data.cancel_url,
-        merchantid: merchant.id,
-        idempotencyKey: key,
-        usdRate: amountUsd,
-        isManual: parsed.data.manual ?? false,
-        expiresAt,
-      },
-    });
-
-    const paymentUrl = `${process.env.BACKEND_URL}/charges/checkout/${chargeId}`;
-    return res.status(200).json({ address, charge_id: chargeId, paymentUrl });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "charge_failed" });
   }
 }

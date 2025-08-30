@@ -9,7 +9,7 @@ export async function publishChargeUpdate(chargeId: string) {
       chargeId: true,
       address: true,
       amount: true,
-      status: true, // internal status
+      status: true,
       payoutTxId: true,
       usdRate: true,
       createdAt: true,

@@ -11,13 +11,13 @@ export default function toChargeEvent(c: any): any {
     remainingSec === 0 &&
     (c.status === "PENDING" || c.status === "DETECTED")
   ) {
-    c.status = "EXPIRED"; // client can reflect immediately
+    c.status = "EXPIRED";
   }
 
   return {
     chargeId: c.chargeId,
     address: c.address,
-    amount: c.amount, // keep your unit (sats or sBTC base unit)
+    amount: c.amount,
     status: toPublicStatus(c.status),
     txid: c.txid ?? null,
     expiresAt: exp.toISOString(),

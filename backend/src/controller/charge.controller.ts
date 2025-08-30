@@ -4,6 +4,18 @@ import QRCode from "qrcode";
 import path from "path";
 import toChargeEvent from "../utils/payment/publicPayloadBuilder";
 import { eventBus, chargeTopic } from "../utils/eventBus";
+import { paymentSchema } from "../zod/zodCheck";
+import {
+  generateSecretKey,
+  generateWallet,
+  getStxAddress,
+} from "@stacks/wallet-sdk";
+import { v4 as uuidv4 } from "uuid";
+
+import fetchUsdExchangeRate from "../utils/blockchain/fetchUsdExchangeRate";
+import { deriveHotWallet } from "../utils/blockchain/deriveHotWallet";
+import { calculateFeeBuffer } from "../utils/payment/feeCalculator";
+import { transferAllStx, transferStx } from "../utils/blockchain/transferStx";
 
 // GET /charges/:id
 export async function getCharge(req: Request, res: Response) {
@@ -159,6 +171,7 @@ export async function cancelCharge(req: Request, res: Response) {
       amount: true,
       payoutTxId: true,
       createdAt: true,
+      privKey: true,
       usdRate: true,
       expiresAt: true,
       success_url: true,
@@ -187,6 +200,18 @@ export async function cancelCharge(req: Request, res: Response) {
       .json({ error: "cannot_cancel", status: refreshed?.status || "UNKNOWN" });
   }
 
+  try {
+    const { stxAddress: hotAddr } = await deriveHotWallet(
+      process.env.mnemonicString as string
+    );
+    console.log(`♻️ Refunding fee buffer from temp → hot wallet: `);
+
+    // Sweep all balance back (minus a fee)
+    await transferAllStx(current.privKey as string, hotAddr);
+  } catch (err) {
+    console.error("⚠️ Failed to refund STX buffer:", err);
+    // you may want to keep going, don’t block cancellation UX
+  }
   const updated = await prisma.charge.findUnique({
     where: { chargeId: id },
     select: {
@@ -209,4 +234,80 @@ export async function cancelCharge(req: Request, res: Response) {
   eventBus.emit(chargeTopic(id), toChargeEvent(updated));
 
   return res.json({ ok: true, status: "CANCELLED" });
+}
+
+export async function createCharge(req: Request, res: Response) {
+  try {
+    const key = req.get("Idempotency-Key");
+    if (!key) return res.status(400).json({ error: "missing_idempotency_key" });
+    if (!req.merchant) return res.status(401).json({ error: "unauthorized" });
+
+    // Prevent duplicates
+    const existing = await prisma.charge.findUnique({
+      where: {
+        merchantid_idempotencyKey: {
+          merchantid: req.merchant.id,
+          idempotencyKey: key,
+        },
+      },
+    });
+    if (existing) return res.json({ error: "duplicate_charge" });
+
+    // Validate input
+    const parsed = paymentSchema.safeParse(req.body);
+    if (!parsed.success)
+      return res.status(400).json({ error: parsed.error.message });
+
+    const merchant = req.merchant;
+    if (!merchant) return;
+
+    // Generate temp wallet
+    const newWallet = await generateWallet({
+      secretKey: generateSecretKey(),
+      password: process.env.password as string,
+    });
+    const account = newWallet.accounts[0];
+    if (!account) return res.status(500).json({ error: "wallet_error" });
+
+    const privKey = account.stxPrivateKey;
+    const address = getStxAddress(account, "testnet");
+
+    const chargeId = uuidv4();
+    // Calculate amounts
+    const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
+    const rateUsd = await fetchUsdExchangeRate();
+    const amountUsd = Number(parsed.data.amount) * rateUsd;
+
+    // Top up fee buffer
+    const { stxPrivateKey, stxAddress } = await deriveHotWallet(
+      process.env.mnemonicString as string
+    );
+    console.log("hotWallet address", stxAddress);
+    const dynamicFeeBuffer = await calculateFeeBuffer();
+    await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
+
+    const TTL_MIN = 15;
+    const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
+    const charge = await prisma.charge.create({
+      data: {
+        chargeId,
+        address,
+        privKey,
+        amount: microAmount,
+        success_url: parsed.data.success_url,
+        cancel_url: parsed.data.cancel_url,
+        merchantid: merchant.id,
+        idempotencyKey: key,
+        usdRate: amountUsd,
+        isManual: parsed.data.manual ?? false,
+        expiresAt,
+      },
+    });
+
+    const paymentUrl = `${process.env.BACKEND_URL}/charges/checkout/${chargeId}`;
+    return res.status(200).json({ address, charge_id: chargeId, paymentUrl });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "charge_failed" });
+  }
 }

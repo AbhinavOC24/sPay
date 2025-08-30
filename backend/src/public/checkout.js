@@ -234,7 +234,9 @@
 
       cancelBtn.disabled = true;
       cancelBtn.textContent = "Cancelling...";
-
+      setTimeout(() => {
+        cancelBtn.textContent = "Cancelled";
+      }, 3000);
       try {
         console.log(`📤 Sending POST to: /charges/${chargeId}/cancel`);
         const response = await axios.post(`/charges/${chargeId}/cancel`);

@@ -8,7 +8,7 @@ import {
   getCharge,
 } from "../controller/charge.controller";
 import { requireMerchant } from "../middleware/auth";
-import { createCharge } from "../controller/merchant.controller";
+import { createCharge } from "../controller/charge.controller";
 
 const router = Router();
 
