@@ -53,7 +53,7 @@ curl -X POST https://stacks-gateway-backend.onrender.com/charges/createCharge \
 {
   "address": "ST3ABC...XYZ",
   "charge_id": "8a1e20b2-...",
-  "paymentUrl": "https://<backend-url>/checkout/8a1e20b2-..."
+  "paymentUrl": "https://<url>/checkout/8a1e20b2-..."
 }
 ```
 

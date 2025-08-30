@@ -8,6 +8,8 @@ The gateway delivers webhook events via `POST` requests to the **Webhook URL** y
 
 This is also where the **webhookSecret** you set comes into play — it’s used by the gateway to generate the `X-SBTC-Signature` header, and by your server to verify authenticity.
 
+> ⚠️ **Note**: Charges created via **dashboard** do not trigger further webhook events. Only charges created through the **API** will emit webhooks.
+
 ---
 
 ### Delivery
@@ -44,7 +46,7 @@ This is also where the **webhookSecret** you set comes into play — it’s used
 
 ### Verifying the Signature
 
-You must verify the `X-SBTC-Signature` header to ensure the event is genuine.
+You must verify the X-SBTC-Signature header to ensure the webhook event is authentic. This signature is generated using the webhook secret that the merchant is required to set during onboarding (in the dashboard, before creating charges) if webhook delivery is needed.
 
 #### Example (Node.js / Express)
 

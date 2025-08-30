@@ -291,7 +291,6 @@ async function processPayoutInitiated() {
 
       console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
 
-      // 2) Do the network call OUTSIDE any transaction
       if (!charge.privKey) {
         throw new Error(
           `Missing temp wallet privKey for charge ${charge.chargeId}`
