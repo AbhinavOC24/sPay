@@ -8,14 +8,19 @@ export async function deliverChargeConfirmedWebhook({
   config,
 }: WebhookDeliveryParams) {
   if (!config.secret || !config.url) {
+    // Ensure merchant has configured a webhook URL + secret
+
     console.log(
       "📧 Can't find webhook secret and url from deliverChargeWebhook"
     );
     return;
   }
+  // Unique event ID and timestamp
 
   const eventId = `${payload.chargeId}:payout_completed`;
   const nowIso = new Date().toISOString();
+
+  // Wrap payload in a consistent event envelope
 
   const eventEnvelope = {
     type: "charge.completed",
@@ -23,13 +28,20 @@ export async function deliverChargeConfirmedWebhook({
     occurredAt: nowIso,
     data: payload,
   };
+
+  // Serialize to JSON and sign with HMAC-SHA256 using webhook secret
+
   const bodyJson = JSON.stringify(eventEnvelope);
   const signature =
     "sha256=" +
     crypto.createHmac("sha256", config.secret).update(bodyJson).digest("hex");
 
+  // Retry config
+
   let attempts = 0;
   const maxAttempts = 3;
+
+  // Try delivering webhook up to `maxAttempts` times
 
   while (attempts < maxAttempts) {
     try {
@@ -71,6 +83,7 @@ export async function deliverChargeConfirmedWebhook({
         error?.response?.status || error?.code || error?.message
       );
 
+      // Record failure in DB
       await prisma.charge.update({
         where: { chargeId: payload.chargeId },
         data: {
@@ -79,6 +92,8 @@ export async function deliverChargeConfirmedWebhook({
           lastProcessedAt: new Date(),
         },
       });
+
+      // Backoff before retry (linear: 2s, 4s, 6s)
 
       if (attempts < maxAttempts) {
         const backoffDelay = attempts * 2000;

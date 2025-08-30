@@ -12,7 +12,13 @@ import {
 } from "../dbChecker/dbChecker";
 import { hasRequiredSbtcBalance } from "../blockchain/checksBTC";
 const HIRO_API_BASE = "https://api.testnet.hiro.so";
-//PENDING → CONFIRMED → PAYOUT_INITIATED → PAYOUT_CONFIRMED → COMPLETED
+
+// - 🔄 **State machine** – moves charges through their lifecycle:
+//   - PENDING → CONFIRMED (payment detected)
+//   - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)
+//   - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)
+//   - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)
+
 import { markChargeFailed } from "./markChargeFailed";
 // flags to prevent race conditions
 let isProcessing = false;
@@ -97,7 +103,7 @@ export function startChargeProcessor() {
     if (isShuttingDown) return;
 
     // Calculate next poll interval with exponential backoff
-    const baseInterval = Number(process.env.POLL_INTERVAL_MS || 30000); // 30 seconds base
+    const baseInterval = Number(process.env.POLL_INTERVAL_MS || 10000); // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
 
@@ -308,7 +314,7 @@ async function processPayoutInitiated() {
         charge.merchant.payoutStxAddress,
         charge.amount
       );
-      console.log("TX id form transferSbtc", txid);
+      // console.log("TX id form transferSbtc", txid); for debugging if sBTC tx'ed from ephermal to merchant
 
       const updated = await safeDbOperation(
         () =>
@@ -414,9 +420,9 @@ async function processPayoutConfirmed() {
             }),
           `processPayoutConfirmed:confirm:${charge.chargeId}`
         );
+        // Handle webhook delivery if charge is created from API
 
         if (updatedCharge) {
-          // Handle webhook delivery
           const hasWebhook =
             !!updatedCharge.merchant?.webhookUrl &&
             !!updatedCharge.merchant?.webhookSecret;
