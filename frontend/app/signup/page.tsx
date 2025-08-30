@@ -78,7 +78,7 @@ export default function SignupPage() {
       <Image src={bg_left} alt="IMG" height={588} />
 
       {/* Signup panel */}
-      <div className="px-14 py-[64px]  bg-[#1D1D1D]  border border-[#8787873f] flex flex-col justify-center items-center gap-8  max-w-md">
+      <div className="px-14 h-[592px]  bg-[#1D1D1D]  border border-[#8787873f] flex flex-col justify-center items-center gap-8  max-w-md">
         <div className="w-full flex flex-col gap-8">
           <div className="w-full  flex flex-col justify-center items-center ">
             <div className="text-[44px] font-bold text-center w-[380px]  text-[#e6edf3]">

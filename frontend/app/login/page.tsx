@@ -71,12 +71,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#101010] flex items-center justify-center p-4">
       <Image src={left_bg} alt="IMg" height={588} />
-      <div className="px-16 py-36  bg-[#1D1D1D]  border border-[#8787873f] flex flex-col justify-center items-center gap-8">
+      <div className="px-16 h-[592px] bg-[#1D1D1D]  border border-[#8787873f] flex flex-col justify-center items-center gap-8">
         <div className="   w-full flex flex-col justify-center items-center">
           <div className="text-3xl font-bold text-center w-full text-[#e6edf3]">
             Welcome Back
           </div>
-          <div className="text-[#9aa4b2]   text-[16px] text-center w-full">
+          <div className="text-[#BDBDBD]   text-[16px] text-center w-full">
             Sign in to your merchant dashboard
           </div>
         </div>
