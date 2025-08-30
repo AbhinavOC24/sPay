@@ -94,7 +94,7 @@ src
 │   ├── eventBus.ts       # Internal event bus (SSE + updates)
 │   ├── keys.ts           # Key generators
 │   └── payment/          # Core payment state machine + helpers
-│       ├── chargeProcessor.ts
+│       ├── chargeProcessor.ts #Core charge processing unit
 │       ├── deliverChargeWebhook.ts
 │       ├── feeCalculator.ts
 │       ├── markChargeFailed.ts
@@ -134,7 +134,7 @@ cd ../frontend
 npm install
 ```
 
-### 2. Environment Setup
+### 2. Backend Environment Setup
 
 ```env
 BACKEND_PORT=8000
@@ -146,6 +146,7 @@ password=
 NODE_ENV="development"
 BACKEND_URL=
 FRONTEND_URL=
+POLL_INTERVAL_MS= // Poll interval for chargeProcessor, Default polling interval is every 30s
 ```
 
 ### 3. Run Backend
