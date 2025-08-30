@@ -239,7 +239,7 @@ app.post("/webhook", (req, res) => {
 
 - Never expose your `apiSecret` and `apiKey` client-side.
 - Webhooks must be verified with HMAC.
-- Sessions/cookies are merchant-side; API uses key+secret.
+- Sessions/cookies are merchant-side; Charge related APIs uses key+secret and unique Idempotency key as header per charge to avoid charges.
 
 ## 📜 License
 
