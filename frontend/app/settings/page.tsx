@@ -209,9 +209,34 @@ export default function SettingsPage() {
                       <Copy className="w-4 h-4" />
                     )}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const res = await useMerchantStore
+                          .getState()
+                          .rotateSecret();
+                        setApiCredentials({
+                          apiKey: res.apiKey,
+                          apiSecret: res.apiSecret,
+                        });
+                      } catch (err) {
+                        console.error("Failed to rotate secret", err);
+                      }
+                    }}
+                    className="h-8 px-2 text-xs text-red-400 hover:text-red-200"
+                  >
+                    Rotate
+                  </Button>
                 </div>
               </div>
             </div>
+            <p className="text-xs text-[#9aa4b2] mt-1">
+              Your API Secret is sensitive. Use it only in your server backend.
+              If you believe it may have been exposed, rotate it immediately
+              from this page.
+            </p>
           </CardContent>
         </Card>
 

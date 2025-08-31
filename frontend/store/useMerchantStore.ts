@@ -23,6 +23,12 @@ interface Charge {
   status: string;
 }
 
+interface RotateSecretResponse {
+  message: string;
+  apiKey: string;
+  apiSecret: string;
+}
+
 interface MerchantStore {
   merchant: Merchant | null;
   charges: Charge[];
@@ -31,6 +37,7 @@ interface MerchantStore {
   newPaymentModalStatus: boolean;
   fetchMerchant: () => Promise<void>;
   fetchCharges: () => Promise<void>;
+  rotateSecret: () => Promise<RotateSecretResponse>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -78,6 +85,25 @@ export const useMerchantStore = create<MerchantStore>((set, get) => ({
     }
   },
 
+  rotateSecret: async (): Promise<RotateSecretResponse> => {
+    const res = await axios.post<RotateSecretResponse>(
+      "backend/merchants/api-secret/rotate",
+      {},
+      { withCredentials: true }
+    );
+    const currentMerchant = get().merchant;
+    if (currentMerchant) {
+      set({
+        merchant: {
+          ...currentMerchant,
+          apiKey: res.data.apiKey,
+          apiSecret: res.data.apiSecret,
+        },
+      });
+    }
+
+    return res.data;
+  },
   signup: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {

@@ -166,3 +166,25 @@ export async function listCharges(req: Request, res: Response) {
     res.status(500).json({ error: "fetch_charges_failed" });
   }
 }
+
+// POST /merchant/api-secret/rotate
+export async function rotateApiSecret(req: Request, res: Response) {
+  try {
+    const newSecret = genApiSecret();
+
+    const updated = await prisma.merchant.update({
+      where: { id: req.session.merchantId as string },
+      data: { apiSecret: newSecret },
+      select: { id: true, apiKey: true, apiSecret: true, updatedAt: true },
+    });
+
+    return res.json({
+      message: "secret_rotated",
+      apiKey: updated.apiKey,
+      apiSecret: updated.apiSecret,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "rotate_failed" });
+  }
+}

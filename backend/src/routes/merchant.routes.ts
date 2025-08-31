@@ -7,6 +7,7 @@ import {
   login,
   logout,
   me,
+  rotateApiSecret,
   signup,
   updateConfig,
 } from "../controller/merchant.controller";
@@ -19,5 +20,6 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.get("/me", checkDashBoardAuth, me);
 router.get("/charges", checkDashBoardAuth, listCharges);
+router.post("/api-secret/rotate", checkDashBoardAuth, rotateApiSecret);
 
 export default router;
