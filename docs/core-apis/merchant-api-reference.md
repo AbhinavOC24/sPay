@@ -221,3 +221,5 @@ curl -X POST https://stacks-gateway-backend.onrender.com/merchants/api-secret/ro
 ```
 
 > ⚠️ **Note**: The old secret is no longer valid after rotation. Copy and securely store the new apiSecret — you will need it for charge creation and other API calls.
+
+---
