@@ -8,8 +8,6 @@ The gateway delivers webhook events via `POST` requests to the **Webhook URL** y
 
 This is also where the **webhookSecret** you set comes into play — it’s used by the gateway to generate the `X-SBTC-Signature` header, and by your server to verify authenticity.
 
-> ⚠️ **Note**: Charges created via **dashboard** do not trigger further webhook events. Only charges created through the **API** will emit webhooks.
-
 ---
 
 ### Delivery
