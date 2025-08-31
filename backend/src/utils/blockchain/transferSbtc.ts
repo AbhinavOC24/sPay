@@ -56,6 +56,6 @@ export async function transferSbtc(
   });
 
   const result = await broadcastTransaction({ transaction: tx, network });
-  // console.log("from transfer sBtch:", result); for debugging
+
   return result; // { txid }
 }

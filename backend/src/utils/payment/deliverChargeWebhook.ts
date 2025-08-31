@@ -108,3 +108,95 @@ export async function deliverChargeConfirmedWebhook({
   );
   return false;
 }
+
+export async function deliverChargeCancelledWebhook({
+  payload,
+  config,
+}: WebhookDeliveryParams) {
+  if (!config.secret || !config.url) {
+    console.log(
+      "📧 Can't find webhook secret and url from deliverChargeCancelledWebhook"
+    );
+    return;
+  }
+  console.log("paylord", payload, config);
+  const eventId = `${payload.chargeId}:cancelled`;
+  const nowIso = new Date().toISOString();
+
+  const eventEnvelope = {
+    type: "charge.cancelled", // 👈 distinct type
+    eventId,
+    occurredAt: nowIso,
+    data: payload,
+  };
+
+  const bodyJson = JSON.stringify(eventEnvelope);
+  const signature =
+    "sha256=" +
+    crypto.createHmac("sha256", config.secret).update(bodyJson).digest("hex");
+
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      console.log(
+        `📧 Sending CANCEL webhook attempt ${attempts + 1} for charge ${
+          payload.chargeId
+        }`
+      );
+      console.log("inside cancel charge webhook");
+      await axios.post(config.url, bodyJson, {
+        headers: {
+          "Content-Type": "application/json",
+          "X-SBTC-Signature": signature,
+          "X-SBTC-Event-Id": eventId,
+          "X-SBTC-Event-Attempt": String(attempts),
+          "X-SBTC-Event-Timestamp": nowIso,
+        },
+        timeout: 8000,
+      });
+
+      await prisma.charge.update({
+        where: { chargeId: payload.chargeId },
+        data: {
+          webhookAttempts: { increment: 1 },
+          webhookLastStatus: "SUCCESS",
+          lastProcessedAt: new Date(),
+        },
+      });
+
+      console.log(
+        `📧 ✅ CANCEL webhook delivered successfully for ${payload.chargeId}`
+      );
+      return true;
+    } catch (error: any) {
+      attempts++;
+
+      console.error(
+        `📧 ❌ CANCEL webhook attempt ${attempts} failed for ${payload.chargeId}:`,
+        error?.response?.status || error?.code || error?.message
+      );
+
+      await prisma.charge.update({
+        where: { chargeId: payload.chargeId },
+        data: {
+          webhookAttempts: { increment: 1 },
+          webhookLastStatus: "FAILED",
+          lastProcessedAt: new Date(),
+        },
+      });
+
+      if (attempts < maxAttempts) {
+        const backoffDelay = attempts * 2000;
+        console.log(`📧 ⏳ Retrying CANCEL webhook in ${backoffDelay}ms...`);
+        await new Promise((res) => setTimeout(res, backoffDelay));
+      }
+    }
+  }
+
+  console.error(
+    `📧 💀 All CANCEL webhook attempts failed for ${payload.chargeId}`
+  );
+  return false;
+}

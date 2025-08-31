@@ -53,35 +53,12 @@
   const copyAddr = document.getElementById("copyAddr");
   const copyAmt = document.getElementById("copyAmt");
 
-  // Debug: Log all elements
-  console.log("🔍 Elements found:");
-  console.log("- qrEl:", !!qrEl);
-  console.log("- addrEl:", !!addrEl);
-  console.log("- amtEl:", !!amtEl);
-  console.log("- stEl:", !!stEl);
-  console.log("- hintEl:", !!hintEl);
-  console.log("- timerEl:", !!timerEl);
-  console.log("- cancelBtn:", !!cancelBtn);
-  console.log("- copyAddr:", !!copyAddr);
-  console.log("- copyAmt:", !!copyAmt);
-
   if (!cancelBtn) {
-    console.error("❌ CRITICAL: Cancel button not found!");
-    console.log("🔍 Available elements with 'cancel' in ID:");
     document.querySelectorAll("[id*='cancel']").forEach((el) => {
       console.log("- Found element:", el.tagName, "id:", el.id);
     });
-    console.log("🔍 All buttons on page:");
-    document.querySelectorAll("button").forEach((el) => {
-      console.log(
-        "- Button:",
-        el.tagName,
-        "id:",
-        el.id,
-        "class:",
-        el.className
-      );
-    });
+
+    document.querySelectorAll("button").forEach((el) => {});
   }
 
   let cancelUrl = "";
@@ -96,7 +73,6 @@
   };
 
   const setStatus = (status) => {
-    console.log("🔄 Setting status:", status);
     const cls =
       {
         PENDING: "muted",
@@ -118,13 +94,11 @@
       cancelBtn.title = canCancel
         ? ""
         : "You can only cancel while the charge is pending.";
-      console.log("🔄 Cancel button disabled:", !canCancel);
     }
   };
 
   function render(c) {
     if (!c) return;
-    console.log("🎨 Rendering charge data:", c);
 
     if (addrEl) addrEl.textContent = c.address || "—";
     if (amtEl) amtEl.textContent = fmt(c.amount);
@@ -142,7 +116,7 @@
     }
 
     setStatus(c.status);
-    console.log("Cancel Url:", c.cancel_url);
+
     cancelUrl = c.cancel_url ?? cancelUrl;
     successUrl = c.success_url ?? successUrl;
 
@@ -217,14 +191,6 @@
 
   // Cancel button handler
   if (cancelBtn) {
-    console.log("✅ Cancel button found, attaching event listener");
-    console.log("🔍 Cancel button details:", {
-      tagName: cancelBtn.tagName,
-      id: cancelBtn.id,
-      className: cancelBtn.className,
-      disabled: cancelBtn.disabled,
-    });
-
     // Add event listener
     const handleCancel = async (event) => {
       event.preventDefault();
@@ -238,9 +204,7 @@
         cancelBtn.textContent = "Cancelled";
       }, 3000);
       try {
-        console.log(`📤 Sending POST to: /charges/${chargeId}/cancel`);
         const response = await axios.post(`/charges/${chargeId}/cancel`);
-        console.log("✅ Cancel response:", response.data);
 
         // Redirect immediately if cancelUrl is set
         if (cancelUrl) {
@@ -251,7 +215,6 @@
           console.warn("⚠️ No cancelUrl set; staying on page");
         }
       } catch (error) {
-        console.error("❌ Cancel error:", error);
         cancelBtn.disabled = false;
         cancelBtn.textContent = "Cancel";
 
@@ -265,17 +228,14 @@
 
     // Attach the event listener
     cancelBtn.addEventListener("click", handleCancel);
-    console.log("✅ Event listener attached to cancel button");
   } else {
-    console.error("❌ Cancel button not found! Check HTML element ID");
   }
 
   // initial snapshot
-  console.log("📡 Loading initial charge data...");
+
   axios
     .get(`/charges/${chargeId}`, { headers: { "Cache-Control": "no-store" } })
     .then((res) => {
-      console.log("✅ Initial charge data loaded:", res.data);
       render(res.data);
     })
     .catch((err) => {
@@ -283,11 +243,10 @@
     });
 
   // live SSE
-  console.log("🔄 Opening SSE connection...");
+
   const es = new EventSource(`/charges/${chargeId}/events`);
 
   es.addEventListener("charge.updated", (e) => {
-    console.log("📡 SSE charge.updated event received:", e.data);
     try {
       const data = JSON.parse(e.data);
       render(data);
@@ -317,6 +276,4 @@
   es.onopen = () => {
     console.log("✅ SSE connection opened");
   };
-
-  console.log("🚀 Checkout script initialization complete");
 })();

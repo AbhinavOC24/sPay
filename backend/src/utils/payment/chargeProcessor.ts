@@ -105,7 +105,7 @@ export function startChargeProcessor() {
     if (isShuttingDown) return;
 
     // Calculate next poll interval with exponential backoff
-    const baseInterval = Number(process.env.POLL_INTERVAL_MS || 30000); // 30 seconds base
+    const baseInterval = Number(process.env.POLL_INTERVAL_MS || 10000); // 30 seconds base
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
 
@@ -429,7 +429,7 @@ async function processPayoutConfirmed() {
             !!updatedCharge.merchant?.webhookUrl &&
             !!updatedCharge.merchant?.webhookSecret;
 
-          if (hasWebhook && !updatedCharge.isManual) {
+          if (hasWebhook && updatedCharge.webhookDelivery) {
             try {
               const ok = await deliverChargeConfirmedWebhook({
                 payload: {
@@ -707,24 +707,6 @@ export async function recoverStuckCharges() {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }
-
-// export async function expireOldCharges() {
-//   const expired = await safeDbOperation(
-//     () =>
-//       prisma.charge.updateMany({
-//         where: {
-//           status: "PENDING",
-//           expiresAt: { lte: new Date() },
-//         },
-//         data: { status: "EXPIRED" },
-//       }),
-//     "expireOldCharges"
-//   );
-
-//   if (expired && expired.count > 0) {
-//     console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
-//   }
-// }
 
 // mark old pending charges as expired + refund gas fees
 export async function expireOldCharges() {

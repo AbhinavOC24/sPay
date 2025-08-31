@@ -25,12 +25,16 @@ export default function NewPaymentModal() {
     order_id: "",
     success_url: "",
     cancel_url: "",
-    manual: true,
+    webhookDelivery: false,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value }); // 👈 don't Number() here
+    const { name, value, type, checked } = e.target;
+
+    setForm({
+      ...form,
+      [name]: type === "checkbox" ? checked : value,
+    });
   };
 
   const validate = () => {
@@ -150,7 +154,25 @@ export default function NewPaymentModal() {
               placeholder="Cancel URL (optional)"
               className="w-full p-2 rounded bg-[#0b0d10] border border-[#8787873f] text-[#e6edf3]"
             />
-
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="webhookDelivery"
+                name="webhookDelivery"
+                checked={form.webhookDelivery}
+                onChange={handleChange}
+                className="w-4 h-4"
+              />
+              <label
+                htmlFor="webhookDelivery"
+                className="text-[#e6edf3] text-sm"
+              >
+                Webhook Notification
+              </label>
+            </div>
+            <p className="text-xs text-yellow-400 mt-1">
+              ⚠️ Your webhook server must be running to receive alerts.
+            </p>
             <div className="flex justify-end space-x-3 mt-4">
               <button
                 type="button"
@@ -203,7 +225,7 @@ export default function NewPaymentModal() {
                     success_url: "",
                     cancel_url: "",
                     order_id: "",
-                    manual: true,
+                    webhookDelivery: true,
                   });
                   setPaymentUrl(null);
                   setErrors({});

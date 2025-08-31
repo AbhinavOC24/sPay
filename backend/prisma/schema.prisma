@@ -27,7 +27,7 @@ address   String   @unique
   success_url   String?
   cancel_url    String?
   usdRate       Int  @default(1)
-  isManual Boolean @default(false)
+  webhookDelivery Boolean @default(false)
  // Timing fields
   paidAt    DateTime?
   createdAt DateTime @default(now())

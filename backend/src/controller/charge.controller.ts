@@ -16,6 +16,7 @@ import fetchUsdExchangeRate from "../utils/blockchain/fetchUsdExchangeRate";
 import { deriveHotWallet } from "../utils/blockchain/deriveHotWallet";
 import { calculateFeeBuffer } from "../utils/payment/feeCalculator";
 import { transferAllStx, transferStx } from "../utils/blockchain/transferStx";
+import { deliverChargeCancelledWebhook } from "../utils/payment/deliverChargeWebhook";
 
 // GET /charges/:id
 export async function getCharge(req: Request, res: Response) {
@@ -157,83 +158,120 @@ export async function checkoutPage(req: Request, res: Response) {
 
 // POST /charges/:id/cancel
 export async function cancelCharge(req: Request, res: Response) {
-  const { id } = req.params;
-  if (!id) return res.status(400).json({ error: "missing_charge_id" });
-
-  console.log(`🔄 Cancel request for charge: ${id}`);
-
-  const current = await prisma.charge.findUnique({
-    where: { chargeId: id },
-    select: {
-      chargeId: true,
-      status: true,
-      address: true,
-      amount: true,
-      payoutTxId: true,
-      createdAt: true,
-      privKey: true,
-      usdRate: true,
-      expiresAt: true,
-      success_url: true,
-      cancel_url: true,
-    },
-  });
-
-  if (!current) return res.status(404).json({ error: "not_found" });
-  if (current.status !== "PENDING")
-    return res
-      .status(409)
-      .json({ error: "cannot_cancel", status: current.status });
-
-  const r = await prisma.charge.updateMany({
-    where: { chargeId: id, status: "PENDING" },
-    data: { status: "CANCELLED" },
-  });
-
-  if (r.count === 0) {
-    const refreshed = await prisma.charge.findUnique({
-      where: { chargeId: id },
-      select: { status: true },
-    });
-    return res
-      .status(409)
-      .json({ error: "cannot_cancel", status: refreshed?.status || "UNKNOWN" });
-  }
-
   try {
-    const { stxAddress: hotAddr } = await deriveHotWallet(
-      process.env.mnemonicString as string
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "missing_charge_id" });
+
+    console.log(`🔄 Cancel request for charge: ${id}`);
+
+    const current = await prisma.charge.findUnique({
+      where: { chargeId: id },
+      select: {
+        chargeId: true,
+        status: true,
+        address: true,
+        amount: true,
+        payoutTxId: true,
+        createdAt: true,
+        privKey: true,
+        usdRate: true,
+        expiresAt: true,
+        success_url: true,
+        cancel_url: true,
+      },
+    });
+
+    if (!current) return res.status(404).json({ error: "not_found" });
+    if (current.status !== "PENDING")
+      return res
+        .status(409)
+        .json({ error: "cannot_cancel", status: current.status });
+
+    const r = await prisma.charge.updateMany({
+      where: { chargeId: id, status: "PENDING" },
+      data: { status: "CANCELLED" },
+    });
+
+    if (r.count === 0) {
+      const refreshed = await prisma.charge.findUnique({
+        where: { chargeId: id },
+        select: { status: true },
+      });
+      return res.status(409).json({
+        error: "cannot_cancel",
+        status: refreshed?.status || "UNKNOWN",
+      });
+    }
+
+    try {
+      const { stxAddress: hotAddr } = await deriveHotWallet(
+        process.env.mnemonicString as string
+      );
+      console.log(`♻️ Refunding fee buffer from temp → hot wallet: `);
+
+      // Sweep all balance back (minus a fee)
+      await transferAllStx(current.privKey as string, hotAddr);
+    } catch (err) {
+      console.error("⚠️ Failed to refund STX buffer:", err);
+      // you may want to keep going, don’t block cancellation UX
+    }
+
+    const updatedCharge = await prisma.charge.findUnique({
+      where: { chargeId: id },
+      select: {
+        chargeId: true,
+        address: true,
+        amount: true,
+        status: true,
+        payoutTxId: true,
+        webhookDelivery: true,
+        createdAt: true,
+        paidAt: true,
+        expiresAt: true,
+        success_url: true,
+        cancel_url: true,
+        merchant: {
+          select: { webhookUrl: true, webhookSecret: true },
+        },
+      },
+    });
+
+    console.log(
+      `✅ Charge cancelled successfully. New status: ${updatedCharge?.status}`
     );
-    console.log(`♻️ Refunding fee buffer from temp → hot wallet: `);
+    if (updatedCharge) {
+      const hasWebhook =
+        !!updatedCharge.merchant?.webhookUrl &&
+        !!updatedCharge.merchant?.webhookSecret;
 
-    // Sweep all balance back (minus a fee)
-    await transferAllStx(current.privKey as string, hotAddr);
-  } catch (err) {
-    console.error("⚠️ Failed to refund STX buffer:", err);
-    // you may want to keep going, don’t block cancellation UX
+      if (hasWebhook && updatedCharge.webhookDelivery) {
+        try {
+          const ok = await deliverChargeCancelledWebhook({
+            payload: {
+              chargeId: updatedCharge.chargeId,
+              address: updatedCharge.address,
+              amount: String(updatedCharge.amount),
+              payoutTxId: updatedCharge.payoutTxId,
+            },
+            config: {
+              url: updatedCharge.merchant.webhookUrl,
+              secret: updatedCharge.merchant.webhookSecret,
+            },
+          });
+        } catch (webhookError) {
+          console.error(
+            `📧 Webhook delivery failed for charge ${updatedCharge.chargeId}:`,
+            webhookError
+          );
+        }
+      }
+    }
+    eventBus.emit(chargeTopic(id), toChargeEvent(updatedCharge));
+
+    return res.json({ ok: true, status: "CANCELLED" });
+  } catch (error) {
+    console.log("From cancelCharge", error);
   }
-  const updated = await prisma.charge.findUnique({
-    where: { chargeId: id },
-    select: {
-      chargeId: true,
-      address: true,
-      amount: true,
-      status: true,
-      payoutTxId: true,
-      createdAt: true,
-      usdRate: true,
-      expiresAt: true,
-      success_url: true,
-      cancel_url: true,
-    },
-  });
-
-  console.log(
-    `✅ Charge cancelled successfully. New status: ${updated?.status}`
-  );
-  eventBus.emit(chargeTopic(id), toChargeEvent(updated));
-
-  return res.json({ ok: true, status: "CANCELLED" });
 }
 
 export async function createCharge(req: Request, res: Response) {
@@ -276,7 +314,6 @@ export async function createCharge(req: Request, res: Response) {
     // Calculate amounts
     // const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
     const microAmount = btcToMicro(parsed.data.amount);
-    console.log(microAmount);
 
     const rateUsd = await fetchUsdExchangeRate();
     const amountUsd = Number(parsed.data.amount) * rateUsd;
@@ -285,7 +322,7 @@ export async function createCharge(req: Request, res: Response) {
     const { stxPrivateKey, stxAddress } = await deriveHotWallet(
       process.env.mnemonicString as string
     );
-    console.log("hotWallet address", stxAddress);
+
     const dynamicFeeBuffer = await calculateFeeBuffer();
     await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
 
@@ -302,7 +339,7 @@ export async function createCharge(req: Request, res: Response) {
         merchantid: merchant.id,
         idempotencyKey: key,
         usdRate: amountUsd,
-        isManual: parsed.data.manual ?? false,
+        webhookDelivery: parsed.data.webhookDelivery ?? false,
         expiresAt,
       },
     });

@@ -144,11 +144,11 @@ Parameters:
 - `order_id` _(string, required)_ → Your internal order reference.
 - `success_url` _(string, optional)_ → Customer will be redirected here after a successful payment.
 - `cancel_url` _(string, optional)_ → Customer will be redirected here if the charge is cancelled.
-- `manual` _(boolean, optional)_ →
-  - **`manual: false` (default)** → Normal mode. The gateway automatically processes the charge and delivers webhook events (`charge.confirmed`, `charge.completed`).
-  - **`manual: true`** → Manual mode. The charge is created and visible in the dashboard, but **no webhooks are fired automatically**.
+- `webhookDelivery` _(boolean, optional)_ →
+  - **`webhookDelivery: true` ** → The gateway automatically processes the charge and delivers webhook events (`charge.confirmed`, `charge.completed`).
+  - **`webhookDelivery: false` (default)** → The charge is created and visible in the dashboard, but **no webhooks are fired automatically**.
 
-> 💡 Set manual: true if you want to skip automatic webhook delivery and handle fulfillment on your side. This is useful for invoices, offline settlements, or custom payout flows.
+> 💡 Set webhookDelivery: false if you want to skip automatic webhook delivery and handle fulfillment on your side. This is useful for invoices, offline settlements, or custom payout flows.
 
 ```json
 {
@@ -156,7 +156,7 @@ Parameters:
   "order_id": "order-1001",
   "success_url": "https://merchant.com/success",
   "cancel_url": "https://merchant.com/cancel",
-  "manual": false
+  "webhookDelivery": false
 }
 ```
 
@@ -172,7 +172,7 @@ curl -X POST https://stacks-gateway-backend.onrender.com/charges/createCharge \
     "order_id": "order-1001",
     "success_url": "https://merchant.com/success",
     "cancel_url": "https://merchant.com/cancel"
-    "manual": false
+    "webhookDelivery": false
   }'
 ```
 
