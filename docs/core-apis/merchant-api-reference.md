@@ -191,3 +191,33 @@ curl -X GET https://stacks-gateway-backend.onrender.com/merchants/charges \
   ]
 }
 ```
+
+---
+
+### **POST /merchants/api-secret/rotate**
+
+Rotate the merchant’s `apiSecret`.  
+Requires login (`connect.sid` cookie).
+
+Rotating invalidates the old secret immediately and returns the new one.  
+Use the new `apiSecret` for all future API requests that require authentication.
+
+#### Request
+
+```bash
+curl -X POST https://stacks-gateway-backend.onrender.com/merchants/api-secret/rotate \
+  -H "Content-Type: application/json" \
+  -b cookie.txt
+```
+
+### Response
+
+```bash
+{
+"message": "secret_rotated",
+"apiKey": "pk_live_abc",
+"apiSecret": "sk_live_new123"
+}
+```
+
+> ⚠️ **Note**: The old secret is no longer valid after rotation. Copy and securely store the new apiSecret — you will need it for charge creation and other API calls.
