@@ -274,7 +274,10 @@ export async function createCharge(req: Request, res: Response) {
 
     const chargeId = uuidv4();
     // Calculate amounts
-    const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
+    // const microAmount = BigInt(Math.floor(parsed.data.amount * 100_000_000));
+    const microAmount = btcToMicro(parsed.data.amount);
+    console.log(microAmount);
+
     const rateUsd = await fetchUsdExchangeRate();
     const amountUsd = Number(parsed.data.amount) * rateUsd;
 
@@ -310,4 +313,10 @@ export async function createCharge(req: Request, res: Response) {
     console.error(error);
     return res.status(500).json({ error: "charge_failed" });
   }
+}
+function btcToMicro(amount: string | number): bigint {
+  const s = String(amount);
+  const [int, frac = ""] = s.split(".");
+  const fracPadded = (frac + "00000000").slice(0, 8); // pad or trim to 8 decimals
+  return BigInt(int as string) * 100_000_000n + BigInt(fracPadded);
 }

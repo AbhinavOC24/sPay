@@ -95,8 +95,8 @@ export default function NewPaymentModal() {
       />
 
       {/* Modal content */}
-      <div className="relative bg-[#12161b] p-6 rounded-lg shadow-lg w-full max-w-md z-10">
-        <h2 className="text-xl font-bold text-[#e6edf3] mb-4">
+      <div className="relative bg-[#1D1D1D] border border-[#8787873f]  p-6 rounded-lg shadow-lg w-full max-w-md z-10">
+        <h2 className="text-xl font-bold text-[#e6edf3]   mb-4">
           Create a New Payment
         </h2>
 
@@ -111,7 +111,7 @@ export default function NewPaymentModal() {
                 value={form.amount}
                 onChange={handleChange}
                 placeholder="Amount (sBTC)"
-                className="w-full p-2 rounded bg-[#0b0d10] border border-gray-700 text-[#e6edf3]"
+                className="w-full p-2 rounded bg-[#0b0d10] border border-[#8787873f] text-[#e6edf3]"
                 required
               />
               {errors.amount && (
@@ -126,7 +126,7 @@ export default function NewPaymentModal() {
                 value={form.order_id}
                 onChange={handleChange}
                 placeholder="Order ID"
-                className="w-full p-2 rounded bg-[#0b0d10] border border-gray-700 text-[#e6edf3]"
+                className="w-full p-2 rounded bg-[#0b0d10] border border-[#8787873f] text-[#e6edf3]"
                 required
               />
               {errors.order_id && (
@@ -140,7 +140,7 @@ export default function NewPaymentModal() {
               value={form.success_url}
               onChange={handleChange}
               placeholder="Success URL (optional)"
-              className="w-full p-2 rounded bg-[#0b0d10] border border-gray-700 text-[#e6edf3]"
+              className="w-full p-2 rounded bg-[#0b0d10] border border-[#8787873f] text-[#e6edf3]"
             />
             <input
               type="url"
@@ -148,21 +148,21 @@ export default function NewPaymentModal() {
               value={form.cancel_url}
               onChange={handleChange}
               placeholder="Cancel URL (optional)"
-              className="w-full p-2 rounded bg-[#0b0d10] border border-gray-700 text-[#e6edf3]"
+              className="w-full p-2 rounded bg-[#0b0d10] border border-[#8787873f] text-[#e6edf3]"
             />
 
             <div className="flex justify-end space-x-3 mt-4">
               <button
                 type="button"
                 onClick={() => updateNewPaymentModalStatus(false)}
-                className="px-4 py-2 rounded bg-gray-700 text-[#e6edf3] hover:bg-gray-600"
+                className="px-4 py-2 rounded bg-[#303030] text-[#e6edf3] hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 rounded bg-[#22c55e] text-white hover:bg-[#16a34a] disabled:opacity-50"
+                className="px-4 py-2 rounded bg-[#F56E0F] text-white hover:bg-[#f56f0fdb] disabled:opacity-50"
               >
                 {loading ? "Creating..." : "Create"}
               </button>
@@ -171,13 +171,13 @@ export default function NewPaymentModal() {
         ) : (
           <div className="space-y-4">
             <p className="text-[#e6edf3]">✅ Payment created successfully!</p>
-            <div className="flex items-center bg-[#0b0d10] border border-gray-700 rounded px-3 py-2">
-              <span className="text-[#22c55e] break-all text-sm flex-1">
+            <div className="flex items-center bg-[#0b0d10] border border-[#8787873f] rounded px-3 py-2">
+              <span className="text-[#F56E0F] break-all text-sm flex-1">
                 {paymentUrl}
               </span>
               <button
                 onClick={handleCopy}
-                className="ml-3 px-3 py-1 rounded bg-[#22c55e] text-white hover:bg-[#16a34a] text-sm"
+                className="ml-3 px-3 py-1 rounded bg-[#F56E0F] text-white hover:bg-[#f56f0fcc] text-sm"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
@@ -189,7 +189,7 @@ export default function NewPaymentModal() {
                   href={paymentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded bg-[#22c55e] text-white hover:bg-[#16a34a]"
+                  className="px-4 py-2 rounded bg-[#F56E0F] text-white hover:bg-[#f56f0fce]"
                 >
                   Go to Checkout
                 </a>
