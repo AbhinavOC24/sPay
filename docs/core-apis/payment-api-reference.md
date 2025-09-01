@@ -192,31 +192,6 @@ curl -X POST https://stacks-gateway-backend.onrender.com/charges/[chargeId]/canc
 
 ---
 
-### **GET /checkout/:id** — Hosted Checkout
-
-Redirect your customer to this hosted checkout page.
-
-#### Request
-
-```bash
-curl -I https://stacks-gateway-backend.onrender.com/checkout/[chargeId]
-```
-
-Redirect your customer to this page (from `paymentUrl`).
-
-- Displays a QR code for sBTC payment.
-- Auto-updates charge status in real time.
-- Redirects to `success_url` or `cancel_url` when finished.
-
-#### Error Cases
-
-| Status | Example                   | Meaning                                                            |
-| ------ | ------------------------- | ------------------------------------------------------------------ |
-| 404    | `"No such charge exists"` | Invalid charge ID.                                                 |
-| 410    | _Expired Page_            | The charge has expired → static HTML “Link Expired” page is shown. |
-
----
-
 ### **GET /health** — Health Check
 
 Basic service check.

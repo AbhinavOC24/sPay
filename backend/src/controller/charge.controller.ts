@@ -144,30 +144,6 @@ export async function chargeQr(req: Request, res: Response) {
   res.send(png);
 }
 
-// GET /checkout/:id
-export async function checkoutPage(req: Request, res: Response) {
-  const { id } = req.params;
-  if (!id) return res.status(400).send("missing_charge_id");
-
-  const charge = await prisma.charge.findFirst({
-    where: { chargeId: id },
-    select: { chargeId: true, expiresAt: true },
-  });
-
-  if (!charge || !charge.expiresAt)
-    return res.status(404).send("No such charge exists");
-
-  const expired = Date.now() >= new Date(charge.expiresAt).getTime();
-  res.set("Cache-Control", "no-store");
-
-  if (expired) {
-    return res
-      .status(410)
-      .sendFile(path.join(__dirname, "../public/expired.html"));
-  }
-  return res.sendFile(path.join(__dirname, "../public/checkout.html"));
-}
-
 // POST /charges/:id/cancel
 export async function cancelCharge(req: Request, res: Response) {
   try {
