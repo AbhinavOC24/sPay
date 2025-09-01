@@ -10,6 +10,7 @@ import {
   Pc,
 } from "@stacks/transactions";
 import { STACKS_TESTNET } from "@stacks/network";
+import { ReadableStreamDefaultController } from "stream/web";
 
 const network = STACKS_TESTNET;
 const SBTC_CONTRACT_ADDRESS = "ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT";
@@ -56,6 +57,6 @@ export async function transferSbtc(
   });
 
   const result = await broadcastTransaction({ transaction: tx, network });
-
+  console.log(ReadableStreamDefaultController);
   return result; // { txid }
 }
