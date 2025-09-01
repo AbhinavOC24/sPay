@@ -59,7 +59,11 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       const walletConnect = await connect();
       const userData = getLocalStorage();
       if (!userData) return;
-      const stxAddress = userData.addresses.stx[0].address;
+      // const stxAddress = userData.addresses.stx[0].address;
+      const stxAddress = userData.addresses.stx.find((a) =>
+        a.address.startsWith("ST")
+      )?.address;
+      if (!stxAddress) throw new Error("No STX address from Leather");
       console.log(userData.addresses);
       const amountInMicroSTX = charge.amount;
 
