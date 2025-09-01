@@ -224,12 +224,12 @@ async function processNewPayments() {
 
         if (updated) {
           console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
-          try {
-            console.log("Pushing from processnewPayment");
-            await publishChargeUpdate(charge.chargeId);
-          } catch (e) {
-            console.error("Emit/public update failed for", charge.chargeId, e);
-          }
+          // try {
+          //   console.log("Pushing from processnewPayment");
+          //   await publishChargeUpdate(charge.chargeId);
+          // } catch (e) {
+          //   console.error("Emit/public update failed for", charge.chargeId, e);
+          // }
         }
       }
 
