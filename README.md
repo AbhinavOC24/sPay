@@ -107,11 +107,6 @@ src
 ├── middleware/           # Auth middleware (API key + secret)
 │   └── auth.ts
 ├── mock-webhook-server.ts # Local test server for webhook dev
-├── public/               # Static checkout pages
-│   ├── checkout.html
-│   ├── checkout.css
-│   ├── checkout.js
-│   └── expired.html
 ├── routes/               # Express routers
 │   ├── charge.routes.ts
 │   └── merchant.routes.ts
@@ -121,7 +116,7 @@ src
 │   ├── blockchain/       # Blockchain helpers (sBTC + STX)
 │   │   ├── checksBTC.ts
 │   │   ├── checkTxStatus.ts
-│   │   ├── deriveHotWallet.ts
+│   │   ├── deriveHotWallet.ts 
 │   │   ├── fetchUsdExchangeRate.ts
 │   │   ├── transferSbtc.ts
 │   │   └── transferStx.ts
