@@ -17,6 +17,7 @@ import { deriveHotWallet } from "../utils/blockchain/deriveHotWallet";
 import { calculateFeeBuffer } from "../utils/payment/feeCalculator";
 import { transferAllStx, transferStx } from "../utils/blockchain/transferStx";
 import { deliverChargeCancelledWebhook } from "../utils/payment/deliverChargeWebhook";
+import { publishChargeUpdate } from "../utils/payment/publishChargeUpdate";
 
 // GET /charges/:id
 export async function getCharge(req: Request, res: Response) {
@@ -60,14 +61,25 @@ export async function chargeEvents(req: Request, res: Response) {
   }
 
   res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
+  // res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no"); // for nginx/proxy
   res.setHeader("Connection", "keep-alive");
 
   let seq = Date.now();
+  // const send = (event: string, data: any) => {
+  //   res.write(`event: ${event}\n`);
+  //   res.write(`id: ${++seq}\n`);
+  //   res.write(`data: ${JSON.stringify(data)}\n\n`);
+  // };
   const send = (event: string, data: any) => {
-    res.write(`event: ${event}\n`);
-    res.write(`id: ${++seq}\n`);
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
+    const payload = `event: ${event}\nid: ${++seq}\ndata: ${JSON.stringify(
+      data
+    )}\n\n`;
+    res.write(payload);
+    if (typeof (res as any).flush === "function") {
+      (res as any).flush();
+    }
   };
 
   const c = await prisma.charge.findUnique({
@@ -265,8 +277,10 @@ export async function cancelCharge(req: Request, res: Response) {
           );
         }
       }
+      await publishChargeUpdate(updatedCharge.chargeId);
     }
-    eventBus.emit(chargeTopic(id), toChargeEvent(updatedCharge));
+
+    // eventBus.emit(chargeTopic(id), toChargeEvent(updatedCharge));
 
     return res.json({ ok: true, status: "CANCELLED" });
   } catch (error) {
@@ -344,7 +358,7 @@ export async function createCharge(req: Request, res: Response) {
       },
     });
 
-    const paymentUrl = `${process.env.BACKEND_URL}/charges/checkout/${chargeId}`;
+    const paymentUrl = `${process.env.FRONTEND_URL}/checkout/${chargeId}`;
     return res.status(200).json({ address, charge_id: chargeId, paymentUrl });
   } catch (error) {
     console.error(error);

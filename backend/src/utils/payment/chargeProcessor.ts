@@ -425,6 +425,8 @@ async function processPayoutConfirmed() {
         // Handle webhook delivery if charge is created from API
 
         if (updatedCharge) {
+          await publishChargeUpdate(updatedCharge.chargeId);
+
           const hasWebhook =
             !!updatedCharge.merchant?.webhookUrl &&
             !!updatedCharge.merchant?.webhookSecret;
