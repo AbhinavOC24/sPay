@@ -225,7 +225,6 @@ Idempotency-Key: <unique-uuid>
 
 Merchants can register a `webhook_url` + `webhook_secret`. Events are signed with HMAC and include additional headers for security and idempotency.
 
-⚠️ Note: Charges created via the dashboard do not trigger webhook events. Only charges created via the API will emit webhooks.
 
 ### Webhook Headers
 
