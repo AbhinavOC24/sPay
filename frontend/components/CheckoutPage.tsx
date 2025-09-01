@@ -60,7 +60,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       const userData = getLocalStorage();
       if (!userData) return;
       const stxAddress = userData.addresses.stx[0].address;
-
+      console.log(userData.addresses);
       const amountInMicroSTX = charge.amount;
 
       const pc = Pc.principal(stxAddress)
