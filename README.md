@@ -92,7 +92,7 @@ This ensures merchants always receive their full sBTC amount without needing to 
 - **Blockchain**: Stacks
 - **Frontend (Merchant Dashboard)**: Next.js
 - **Frontend (Checkout)**: Vanilla HTML/CSS/JS
-- **Infra**: EventSource (SSE) + polling fallback
+- **Infra**: polling ( EventSource (SSE) yet to integrate)
 - **Security**: HMAC webhook signing, API key + secret auth
 
 ## 📂 Project Structure
@@ -122,7 +122,7 @@ src
 │   │   └── transferStx.ts
 │   ├── dbChecker/        # DB health monitor
 │   │   └── dbChecker.ts
-│   ├── eventBus.ts       # Internal event bus (SSE + updates)
+│   ├── eventBus.ts       # Internal event bus (SSE + updates) yet to refactor
 │   ├── keys.ts           # Key generators
 │   └── payment/          # Core payment state machine + helpers
 │       ├── chargeProcessor.ts #Core charge processing unit
