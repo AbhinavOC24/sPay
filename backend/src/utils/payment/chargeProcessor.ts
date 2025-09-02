@@ -29,6 +29,8 @@ let isShuttingDown = false;
 export function startChargeProcessor() {
   let consecutiveFailures = 0;
   let pollerTimeout: NodeJS.Timeout | null = null;
+  let recoveryTimer: ReturnType<typeof setInterval> | null = null;
+
   const maxFailures = 5;
 
   // Graceful shutdown handler
@@ -39,6 +41,7 @@ export function startChargeProcessor() {
     if (pollerTimeout) {
       clearTimeout(pollerTimeout);
     }
+    if (recoveryTimer) clearInterval(recoveryTimer);
 
     // Wait for current processing to finish
     let waitCount = 0;
@@ -120,6 +123,23 @@ export function startChargeProcessor() {
       if (healthy) {
         console.log("✅ Initial database health check passed, starting poller");
         pollWithRetry();
+        // Start recovery timer (every 30 min by default)
+        const RECOVERY_INTERVAL_MS = Number(
+          process.env.RECOVERY_INTERVAL_MS || 30 * 60 * 1000
+        );
+        recoveryTimer = setInterval(async () => {
+          if (!isProcessing && !isShuttingDown) {
+            try {
+              await recoverStuckCharges();
+            } catch (err) {
+              console.error("❌ Recovery cycle failed:", err);
+            }
+          } else {
+            console.log(
+              "⏳ Skipping recovery (processor busy or shutting down)"
+            );
+          }
+        }, RECOVERY_INTERVAL_MS);
       } else {
         console.error(
           "❌ Initial database health check failed, retrying in 10 seconds"
@@ -608,6 +628,7 @@ export async function retryFailedWebhooks() {
 }
 
 // Recovery function to handle stuck transactions
+
 export async function recoverStuckCharges() {
   const stuckCharges = await safeDbOperation(
     () =>
@@ -623,21 +644,25 @@ export async function recoverStuckCharges() {
     "recoverStuckCharges:findMany"
   );
 
-  if (!stuckCharges) return;
+  if (!stuckCharges || !stuckCharges.length) {
+    console.log("[RECOVERY] ✅ No stuck charges found");
+    return;
+  }
 
-  console.log(`🔧 Found ${stuckCharges.length} potentially stuck charges`);
+  console.log(
+    `[RECOVERY] 🔧 Found ${stuckCharges.length} potentially stuck charges`
+  );
 
   for (const charge of stuckCharges) {
     if (isShuttingDown) break;
 
-    console.log(`🔧 Checking stuck charge ${charge.chargeId}`);
+    console.log(`[RECOVERY] 🔍 Checking stuck charge ${charge.chargeId}`);
 
     try {
       if (charge.payoutTxId) {
         const txStatus = await checkTxStatus(charge.payoutTxId);
 
         if (txStatus.isSuccess) {
-          // Tx actually went through
           await safeDbOperation(
             () =>
               prisma.charge.update({
@@ -651,23 +676,23 @@ export async function recoverStuckCharges() {
             `recoverStuckCharges:confirm:${charge.chargeId}`
           );
           console.log(
-            `✅ Recovered charge ${charge.chargeId} - tx ${charge.payoutTxId} was successful`
+            `[RECOVERY] ✅ Charge ${charge.chargeId} recovered — tx ${charge.payoutTxId} was successful`
           );
           continue;
         }
 
         if (txStatus.isFailed) {
           console.log(
-            `❌ Tx ${charge.payoutTxId} failed for charge ${charge.chargeId}, rebroadcasting...`
+            `[RECOVERY] ❌ Tx ${charge.payoutTxId} failed for charge ${charge.chargeId}, rebroadcasting...`
           );
         } else {
           console.log(
-            `⏳ Tx ${charge.payoutTxId} still pending but stuck, rebroadcasting...`
+            `[RECOVERY] ⏳ Tx ${charge.payoutTxId} still pending for charge ${charge.chargeId}, rebroadcasting...`
           );
         }
       } else {
         console.log(
-          `⚠️ Charge ${charge.chargeId} has no payoutTxId, rebroadcasting...`
+          `[RECOVERY] ⚠️ Charge ${charge.chargeId} has no payoutTxId, rebroadcasting...`
         );
       }
 
@@ -676,6 +701,9 @@ export async function recoverStuckCharges() {
         await markChargeFailed(
           charge.chargeId,
           "Recovery failed: missing privKey or payout address"
+        );
+        console.error(
+          `[RECOVERY] ❌ Skipping charge ${charge.chargeId} — missing privKey or payout address`
         );
         continue;
       }
@@ -700,12 +728,16 @@ export async function recoverStuckCharges() {
       );
 
       console.log(
-        `📤 Re-broadcasted payout for charge ${charge.chargeId}, new txid: ${newTxid}`
+        `[RECOVERY] 📤 Re-broadcasted payout for charge ${charge.chargeId}, new txid: ${newTxid}`
       );
-    } catch (err) {
-      console.error(`❌ Recovery failed for ${charge.chargeId}:`, err);
+    } catch (err: any) {
+      console.error(
+        `[RECOVERY] ❌ Recovery failed for charge ${charge.chargeId}:`,
+        err.message || err
+      );
     }
 
+    // small delay between charges
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 }
