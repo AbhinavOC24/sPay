@@ -10,6 +10,8 @@ export async function publishChargeUpdate(chargeId: string) {
       address: true,
       amount: true,
       status: true,
+      success_url: true,
+      cancel_url: true,
       payoutTxId: true,
       usdRate: true,
       createdAt: true,

@@ -92,6 +92,8 @@ export async function chargeEvents(req: Request, res: Response) {
       status: true,
       payoutTxId: true,
       usdRate: true,
+      cancel_url: true,
+      success_url: true,
       createdAt: true,
       expiresAt: true,
     },
@@ -256,8 +258,6 @@ export async function cancelCharge(req: Request, res: Response) {
       }
       await publishChargeUpdate(updatedCharge.chargeId);
     }
-
-    // eventBus.emit(chargeTopic(id), toChargeEvent(updatedCharge));
 
     return res.json({ ok: true, status: "CANCELLED" });
   } catch (error) {

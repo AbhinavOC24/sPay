@@ -83,37 +83,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     }
   };
 
-  // success redirect
-  useEffect(() => {
-    if (charge?.status === "CONFIRMED" && charge.success_url) {
-      const url = new URL(charge.success_url);
-      url.searchParams.set("charge_id", charge.chargeId);
-      if (charge.txid) url.searchParams.set("txid", charge.txid);
-      url.searchParams.set("status", "CONFIRMED");
-
-      const timer = setTimeout(() => {
-        window.location.href = url.toString();
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [charge]);
-
-  // cancel/expired redirect
-  useEffect(() => {
-    if (charge?.status === "CANCELLED" && charge.cancel_url) {
-      const url = new URL(charge.cancel_url);
-      url.searchParams.set("charge_id", charge.chargeId);
-      url.searchParams.set("status", charge.status);
-
-      const timer = setTimeout(() => {
-        window.location.href = url.toString();
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [charge]);
-
+  //fetch Initial state
   useEffect(() => {
     axios
       .get(`/backend/charges/${chargeId}`, {
@@ -124,27 +94,67 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       .catch(console.error);
   }, [chargeId]);
 
-  // === SSE live updates ===
   useEffect(() => {
     const es = new EventSource(`/backend/charges/${chargeId}/events`);
+
     es.addEventListener("charge.updated", (e) => {
       try {
         const data = JSON.parse((e as MessageEvent).data);
+        // console.log("SSE charge update received:", data); // Debug log
 
         setCharge(data);
+
+        // Success redirection logic with 3 second timeout
+        if (data.status === "CONFIRMED" && data.success_url) {
+          const url = new URL(data.success_url);
+          url.searchParams.set("charge_id", data.chargeId);
+          if (data.txid) url.searchParams.set("txid", data.txid);
+          url.searchParams.set("status", "CONFIRMED");
+
+          // console.log("SSE - SUCCESS redirect to:", url.toString());
+          // alert("SUCCESS");
+
+          setTimeout(() => {
+            window.location.href = url.toString();
+          }, 3000);
+        }
+
+        // Cancel/expired redirection logic with 3 second timeout
+        if (data.status === "CANCELLED" && data.cancel_url) {
+          const url = new URL(data.cancel_url);
+          url.searchParams.set("charge_id", data.chargeId);
+          url.searchParams.set("status", data.status);
+
+          // console.log("SSE - CANCEL redirect to:", url.toString());
+          // alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
+
+          setTimeout(() => {
+            window.location.href = url.toString();
+          }, 3000);
+        }
       } catch (err) {
         console.error("Error parsing SSE:", err);
       }
     });
-    es.onerror = () => {
+
+    es.onerror = (error) => {
+      console.error("SSE error:", error);
       es.close();
-      setInterval(async () => {
+
+      // Fallback polling
+      const pollInterval = setInterval(async () => {
         try {
           const res = await axios.get(`/backend/charges/${chargeId}`);
+          console.log("Polling update:", res.data); // Debug log
           setCharge(res.data);
-        } catch {}
+        } catch (err) {
+          console.error("Polling error:", err);
+        }
       }, 5000);
+
+      return () => clearInterval(pollInterval);
     };
+
     return () => es.close();
   }, [chargeId]);
 
@@ -158,11 +168,14 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     return () => clearInterval(interval);
   }, [charge?.expiresAt]);
 
-  // === Cancel handler ===
+  // = == Cancel handler ===
   const handleCancel = async () => {
     try {
       await axios.post(`/backend/charges/${chargeId}/cancel`);
-      if (charge?.cancel_url) window.location.href = charge.cancel_url;
+
+      if (charge?.cancel_url) {
+        window.location.href = charge.cancel_url;
+      }
     } catch (err) {
       console.error("Cancel failed:", err);
     }

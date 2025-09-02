@@ -19,6 +19,8 @@ export default function toChargeEvent(c: any): any {
     address: c.address,
     amount: c.amount,
     status: toPublicStatus(c.status),
+    cancel_url: c.cancel_url,
+    success_url: c.success_url,
     txid: c.txid ?? null,
     expiresAt: exp.toISOString(),
     usdRate: c.usdRate,
