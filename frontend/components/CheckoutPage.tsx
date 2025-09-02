@@ -48,18 +48,10 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     if (!charge) return;
 
     try {
-      // const provider = (window as any).LeatherProvider;
-
-      // const addrRes = await provider.request("getAddresses");
-      // const senderAddr = addrRes.result.addresses.find(
-      //   (a: any) => a.symbol === "STX"
-      // )?.address;
-      // if (!senderAddr) throw new Error("No STX address from Leather");
-
       const walletConnect = await connect();
       const userData = getLocalStorage();
       if (!userData) return;
-      // const stxAddress = userData.addresses.stx[0].address;
+
       const stxAddress = userData.addresses.stx.find((a) =>
         a.address.startsWith("ST")
       )?.address;
@@ -90,6 +82,40 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       console.error("❌ Payment failed:", err);
     }
   };
+
+  // success redirect
+  useEffect(() => {
+    if (charge?.status === "CONFIRMED" && charge.success_url) {
+      const url = new URL(charge.success_url);
+      url.searchParams.set("charge_id", charge.chargeId);
+      if (charge.txid) url.searchParams.set("txid", charge.txid);
+      url.searchParams.set("status", "CONFIRMED");
+
+      const timer = setTimeout(() => {
+        window.location.href = url.toString();
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [charge]);
+
+  // cancel/expired redirect
+  // useEffect(() => {
+  //   if (
+  //     (charge?.status === "CANCELLED" || charge?.status === "EXPIRED") &&
+  //     charge.cancel_url
+  //   ) {
+  //     const url = new URL(charge.cancel_url);
+  //     url.searchParams.set("charge_id", charge.chargeId);
+  //     url.searchParams.set("status", charge.status);
+
+  //     const timer = setTimeout(() => {
+  //       window.location.href = url.toString();
+  //     }, 1000);
+
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [charge]);
 
   useEffect(() => {
     axios
@@ -134,7 +160,20 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     }, 1000);
     return () => clearInterval(interval);
   }, [charge?.expiresAt]);
+  useEffect(() => {
+    if (charge?.status === "CONFIRMED" && charge.success_url) {
+      const url = new URL(charge.success_url);
+      url.searchParams.set("charge_id", charge.chargeId);
+      if (charge.txid) url.searchParams.set("txid", charge.txid);
+      url.searchParams.set("status", "CONFIRMED");
 
+      const timer = setTimeout(() => {
+        window.location.href = url.toString(); // ✅ hard redirect
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [charge]);
   // === Cancel handler ===
   const handleCancel = async () => {
     try {

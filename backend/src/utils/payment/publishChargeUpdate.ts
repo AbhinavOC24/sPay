@@ -12,6 +12,8 @@ export async function publishChargeUpdate(chargeId: string) {
       status: true,
       payoutTxId: true,
       usdRate: true,
+      success_url: true,
+      cancel_url: true,
       createdAt: true,
       expiresAt: true,
     },
