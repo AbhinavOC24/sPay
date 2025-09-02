@@ -48,14 +48,6 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     if (!charge) return;
 
     try {
-      // const provider = (window as any).LeatherProvider;
-
-      // const addrRes = await provider.request("getAddresses");
-      // const senderAddr = addrRes.result.addresses.find(
-      //   (a: any) => a.symbol === "STX"
-      // )?.address;
-      // if (!senderAddr) throw new Error("No STX address from Leather");
-
       const walletConnect = await connect();
       const userData = getLocalStorage();
       if (!userData) return;

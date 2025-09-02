@@ -225,7 +225,7 @@ export default function NewPaymentModal() {
                     success_url: "",
                     cancel_url: "",
                     order_id: "",
-                    webhookDelivery: true,
+                    webhookDelivery: false,
                   });
                   setPaymentUrl(null);
                   setErrors({});
