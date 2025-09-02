@@ -83,6 +83,37 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     }
   };
 
+  // success redirect
+  useEffect(() => {
+    if (charge?.status === "CONFIRMED" && charge.success_url) {
+      const url = new URL(charge.success_url);
+      url.searchParams.set("charge_id", charge.chargeId);
+      if (charge.txid) url.searchParams.set("txid", charge.txid);
+      url.searchParams.set("status", "CONFIRMED");
+
+      const timer = setTimeout(() => {
+        window.location.href = url.toString();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [charge]);
+
+  // cancel/expired redirect
+  useEffect(() => {
+    if (charge?.status === "CANCELLED" && charge.cancel_url) {
+      const url = new URL(charge.cancel_url);
+      url.searchParams.set("charge_id", charge.chargeId);
+      url.searchParams.set("status", charge.status);
+
+      const timer = setTimeout(() => {
+        window.location.href = url.toString();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [charge]);
+
   useEffect(() => {
     axios
       .get(`/backend/charges/${chargeId}`, {
