@@ -93,29 +93,26 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
 
       const timer = setTimeout(() => {
         window.location.href = url.toString();
-      }, 1500);
+      }, 3000);
 
       return () => clearTimeout(timer);
     }
   }, [charge]);
 
   // cancel/expired redirect
-  // useEffect(() => {
-  //   if (
-  //     (charge?.status === "CANCELLED" || charge?.status === "EXPIRED") &&
-  //     charge.cancel_url
-  //   ) {
-  //     const url = new URL(charge.cancel_url);
-  //     url.searchParams.set("charge_id", charge.chargeId);
-  //     url.searchParams.set("status", charge.status);
+  useEffect(() => {
+    if (charge?.status === "CANCELLED" && charge.cancel_url) {
+      const url = new URL(charge.cancel_url);
+      url.searchParams.set("charge_id", charge.chargeId);
+      url.searchParams.set("status", charge.status);
 
-  //     const timer = setTimeout(() => {
-  //       window.location.href = url.toString();
-  //     }, 1000);
+      const timer = setTimeout(() => {
+        window.location.href = url.toString();
+      }, 3000);
 
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [charge]);
+      return () => clearTimeout(timer);
+    }
+  }, [charge]);
 
   useEffect(() => {
     axios
