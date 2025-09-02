@@ -111,8 +111,8 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
           if (data.txid) url.searchParams.set("txid", data.txid);
           url.searchParams.set("status", "CONFIRMED");
 
-          // console.log("SSE - SUCCESS redirect to:", url.toString());
-          // alert("SUCCESS");
+          console.log("SSE - SUCCESS redirect to:", url.toString());
+          alert("SUCCESS");
 
           setTimeout(() => {
             window.location.href = url.toString();
@@ -125,8 +125,8 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
           url.searchParams.set("charge_id", data.chargeId);
           url.searchParams.set("status", data.status);
 
-          // console.log("SSE - CANCEL redirect to:", url.toString());
-          // alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
+          console.log("SSE - CANCEL redirect to:", url.toString());
+          alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
 
           setTimeout(() => {
             window.location.href = url.toString();

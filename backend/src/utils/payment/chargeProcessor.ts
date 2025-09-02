@@ -244,12 +244,6 @@ async function processNewPayments() {
 
         if (updated) {
           console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
-          // try {
-          //   console.log("Pushing from processnewPayment");
-          //   await publishChargeUpdate(charge.chargeId);
-          // } catch (e) {
-          //   console.error("Emit/public update failed for", charge.chargeId, e);
-          // }
         }
       }
 
@@ -348,13 +342,13 @@ async function processPayoutInitiated() {
       );
 
       if (updated) {
-        try {
-          console.log("Pushing from processPayoutInitited");
+        // try {
+        //   console.log("Pushing from processPayoutInitited");
 
-          await publishChargeUpdate(charge.chargeId);
-        } catch (e) {
-          console.error("Emit/public update failed for", charge.chargeId, e);
-        }
+        //   await publishChargeUpdate(charge.chargeId);
+        // } catch (e) {
+        //   console.error("Emit/public update failed for", charge.chargeId, e);
+        // }
 
         console.log(
           `📤 SBTC payout initiated for charge ${charge.chargeId}, txid: ${txid}`
@@ -445,7 +439,7 @@ async function processPayoutConfirmed() {
         // Handle webhook delivery if charge is created from API
 
         if (updatedCharge) {
-          await publishChargeUpdate(updatedCharge.chargeId);
+          // await publishChargeUpdate(updatedCharge.chargeId);
 
           const hasWebhook =
             !!updatedCharge.merchant?.webhookUrl &&
@@ -482,7 +476,7 @@ async function processPayoutConfirmed() {
                 console.log(`🎉 Charge ${charge.chargeId} fully completed`);
                 console.log("Pushing from processPayoutconfirmed");
 
-                await publishChargeUpdate(updatedCharge.chargeId);
+                // await publishChargeUpdate(updatedCharge.chargeId);
                 console.log(
                   `✅ SBTC payout confirmed for charge ${charge.chargeId}`
                 );
