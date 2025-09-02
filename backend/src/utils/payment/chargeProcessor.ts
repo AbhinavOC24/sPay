@@ -3,7 +3,7 @@ import axios from "axios";
 import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
 import { transferSbtc } from "../blockchain/transferSbtc";
 import { checkTxStatus } from "../blockchain/checkTxStatus";
-import { publishChargeUpdate } from "./publishChargeUpdate";
+// import { publishChargeUpdate } from "./publishChargeUpdate";
 import {
   safeDbOperation,
   isDatabaseConnectionError,
@@ -504,7 +504,7 @@ async function processPayoutConfirmed() {
                 }),
               `processPayoutConfirmed:completeNoWebhook:${charge.chargeId}`
             );
-            await publishChargeUpdate(updatedCharge.chargeId);
+            // await publishChargeUpdate(updatedCharge.chargeId);
 
             console.log(`✅ Charge ${charge.chargeId} completed (no webhook)`);
           }

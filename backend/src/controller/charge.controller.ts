@@ -256,7 +256,7 @@ export async function cancelCharge(req: Request, res: Response) {
           );
         }
       }
-      await publishChargeUpdate(updatedCharge.chargeId);
+      // await publishChargeUpdate(updatedCharge.chargeId);
     }
 
     return res.json({ ok: true, status: "CANCELLED" });

@@ -94,68 +94,125 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       .catch(console.error);
   }, [chargeId]);
 
+  //SSE
+  // useEffect(() => {
+  //   const es = new EventSource(`/backend/charges/${chargeId}/events`);
+
+  //   es.addEventListener("charge.updated", (e) => {
+  //     try {
+  //       const data = JSON.parse((e as MessageEvent).data);
+  //       console.log("SSE charge update received:", data); // Debug log
+
+  //       setCharge(data);
+
+  //       // Success redirection logic with 3 second timeout
+  //       if (data.status === "CONFIRMED" && data.success_url) {
+  //         const url = new URL(data.success_url);
+  //         url.searchParams.set("charge_id", data.chargeId);
+  //         if (data.txid) url.searchParams.set("txid", data.txid);
+  //         url.searchParams.set("status", "CONFIRMED");
+
+  //         console.log("SSE - SUCCESS redirect to:", url.toString());
+  //         alert("SUCCESS");
+
+  //         setTimeout(() => {
+  //           window.location.href = url.toString();
+  //         }, 3000);
+  //       }
+
+  //       // Cancel/expired redirection logic with 3 second timeout
+  //       if (data.status === "CANCELLED" && data.cancel_url) {
+  //         const url = new URL(data.cancel_url);
+  //         url.searchParams.set("charge_id", data.chargeId);
+  //         url.searchParams.set("status", data.status);
+
+  //         console.log("SSE - CANCEL redirect to:", url.toString());
+  //         alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
+
+  //         setTimeout(() => {
+  //           window.location.href = url.toString();
+  //         }, 3000);
+  //       }
+  //     } catch (err) {
+  //       console.error("Error parsing SSE:", err);
+  //     }
+  //   });
+
+  //   es.onerror = (error) => {
+  //     console.error("SSE error:", error);
+  //     es.close();
+
+  //     // Fallback polling
+  //     const pollInterval = setInterval(async () => {
+  //       try {
+  //         const res = await axios.get(`/backend/charges/${chargeId}`);
+  //         console.log("Polling update:", res.data); // Debug log
+  //         setCharge(res.data);
+  //       } catch (err) {
+  //         console.error("Polling error:", err);
+  //       }
+  //     }, 5000);
+
+  //     return () => clearInterval(pollInterval);
+  //   };
+
+  //   return () => es.close();
+  // }, [chargeId]);
+
+  // === Polling for updates ===
   useEffect(() => {
-    const es = new EventSource(`/backend/charges/${chargeId}/events`);
+    let isMounted = true;
 
-    es.addEventListener("charge.updated", (e) => {
+    const fetchCharge = async () => {
       try {
-        const data = JSON.parse((e as MessageEvent).data);
-        console.log("SSE charge update received:", data); // Debug log
+        const res = await axios.get(`/backend/charges/${chargeId}`, {
+          headers: { "Cache-Control": "no-store" },
+        });
+        if (isMounted) {
+          const data = res.data;
+          setCharge(data);
+          console.log("Polling update:", data);
 
-        setCharge(data);
+          // Success redirect
+          if (data.status === "CONFIRMED" && data.success_url) {
+            const url = new URL(data.success_url);
+            url.searchParams.set("charge_id", data.chargeId);
+            if (data.txid) url.searchParams.set("txid", data.txid);
+            url.searchParams.set("status", "CONFIRMED");
 
-        // Success redirection logic with 3 second timeout
-        if (data.status === "CONFIRMED" && data.success_url) {
-          const url = new URL(data.success_url);
-          url.searchParams.set("charge_id", data.chargeId);
-          if (data.txid) url.searchParams.set("txid", data.txid);
-          url.searchParams.set("status", "CONFIRMED");
+            console.log("Polling - SUCCESS redirect:", url.toString());
+            setTimeout(() => {
+              window.location.href = url.toString();
+            }, 3000);
+          }
 
-          console.log("SSE - SUCCESS redirect to:", url.toString());
-          alert("SUCCESS");
+          // Cancel/expired redirect
+          if (data.status === "CANCELLED" && data.cancel_url) {
+            const url = new URL(data.cancel_url);
+            url.searchParams.set("charge_id", data.chargeId);
+            url.searchParams.set("status", data.status);
 
-          setTimeout(() => {
-            window.location.href = url.toString();
-          }, 3000);
-        }
-
-        // Cancel/expired redirection logic with 3 second timeout
-        if (data.status === "CANCELLED" && data.cancel_url) {
-          const url = new URL(data.cancel_url);
-          url.searchParams.set("charge_id", data.chargeId);
-          url.searchParams.set("status", data.status);
-
-          console.log("SSE - CANCEL redirect to:", url.toString());
-          alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
-
-          setTimeout(() => {
-            window.location.href = url.toString();
-          }, 3000);
+            console.log("Polling - CANCEL redirect:", url.toString());
+            setTimeout(() => {
+              window.location.href = url.toString();
+            }, 3000);
+          }
         }
       } catch (err) {
-        console.error("Error parsing SSE:", err);
+        console.error("Polling error:", err);
       }
-    });
-
-    es.onerror = (error) => {
-      console.error("SSE error:", error);
-      es.close();
-
-      // Fallback polling
-      const pollInterval = setInterval(async () => {
-        try {
-          const res = await axios.get(`/backend/charges/${chargeId}`);
-          console.log("Polling update:", res.data); // Debug log
-          setCharge(res.data);
-        } catch (err) {
-          console.error("Polling error:", err);
-        }
-      }, 5000);
-
-      return () => clearInterval(pollInterval);
     };
 
-    return () => es.close();
+    // Run once immediately
+    fetchCharge();
+
+    // Poll every 5s
+    const interval = setInterval(fetchCharge, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [chargeId]);
 
   // === Countdown ===
