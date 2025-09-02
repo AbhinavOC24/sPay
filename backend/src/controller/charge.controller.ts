@@ -61,17 +61,14 @@ export async function chargeEvents(req: Request, res: Response) {
   }
 
   res.setHeader("Content-Type", "text/event-stream");
-  // res.setHeader("Cache-Control", "no-cache");
+
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("X-Accel-Buffering", "no"); // for nginx/proxy
   res.setHeader("Connection", "keep-alive");
-
+  res.setHeader("Content-Encoding", "identity"); // 👈 force no gzip
+  res.flushHeaders?.(); // 👈 send headers now
   let seq = Date.now();
-  // const send = (event: string, data: any) => {
-  //   res.write(`event: ${event}\n`);
-  //   res.write(`id: ${++seq}\n`);
-  //   res.write(`data: ${JSON.stringify(data)}\n\n`);
-  // };
+
   const send = (event: string, data: any) => {
     const payload = `event: ${event}\nid: ${++seq}\ndata: ${JSON.stringify(
       data
