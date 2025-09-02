@@ -100,7 +100,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     es.addEventListener("charge.updated", (e) => {
       try {
         const data = JSON.parse((e as MessageEvent).data);
-        // console.log("SSE charge update received:", data); // Debug log
+        console.log("SSE charge update received:", data); // Debug log
 
         setCharge(data);
 
@@ -173,9 +173,9 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
     try {
       await axios.post(`/backend/charges/${chargeId}/cancel`);
 
-      if (charge?.cancel_url) {
-        window.location.href = charge.cancel_url;
-      }
+      // if (charge?.cancel_url) {
+      //   window.location.href = charge.cancel_url;
+      // }
     } catch (err) {
       console.error("Cancel failed:", err);
     }
