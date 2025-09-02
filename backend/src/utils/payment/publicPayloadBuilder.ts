@@ -22,8 +22,6 @@ export default function toChargeEvent(c: any): any {
     txid: c.txid ?? null,
     expiresAt: exp.toISOString(),
     usdRate: c.usdRate,
-    cancel_url: c.cancel_url,
-    success_url: c.success_url,
     remainingSec,
   };
 }

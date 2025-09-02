@@ -153,10 +153,7 @@ export async function listCharges(req: Request, res: Response) {
       chargeId: c.chargeId,
       amountSbtc: Number(c.amount) / 100_000_000,
       amountUsd: (Number(c.amount) / 100_000_000) * (c.usdRate || 1),
-      status:
-        c.status === "PAYOUT_INITIATED" || c.status === "PAYOUT_CONFIRMED"
-          ? "COMPLETED"
-          : c.status,
+      status: c.status,
       createdAt: c.createdAt,
       paidAt: c.paidAt,
       payoutTxId: c.payoutTxId,
