@@ -1,27 +1,11 @@
 import prisma from "../../db";
-import axios from "axios";
-import { deliverChargeConfirmedWebhook } from "./deliverChargeWebhook";
-import { transferSbtc } from "../blockchain/transferSbtc";
-import { checkTxStatus } from "../blockchain/checkTxStatus";
-// import { publishChargeUpdate } from "./publishChargeUpdate";
 import {
   safeDbOperation,
   isDatabaseConnectionError,
   checkDatabaseHealth,
   handleDatabaseReconnection,
 } from "../dbChecker/dbChecker";
-import { hasRequiredSbtcBalance } from "../blockchain/checksBTC";
-const HIRO_API_BASE = "https://api.testnet.hiro.so";
 
-// - 🔄 **State machine** – moves charges through their lifecycle:
-//   - PENDING → CONFIRMED (payment detected)
-//   - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)
-//   - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)
-//   - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)
-
-import { markChargeFailed } from "./markChargeFailed";
-import { deriveHotWallet } from "../blockchain/deriveHotWallet";
-import { transferAllStx } from "../blockchain/transferStx";
 import { expireOldCharges } from "./chargeProcessorComponents/expireOldCharges";
 import { processNewPayments } from "./chargeProcessorComponents/processNewPayments";
 import { processPayoutInitiated } from "./chargeProcessorComponents/processPayoutInitiated";
@@ -32,6 +16,11 @@ import { retryFailedWebhooks } from "./chargeProcessorComponents/retryFailedWebh
 let isProcessing = false;
 let isShuttingDown = false;
 
+// - 🔄 **State machine** – moves charges through their lifecycle:
+//   - PENDING → CONFIRMED (payment detected)
+//   - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)
+//   - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)
+//   - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)
 export function startChargeProcessor() {
   let consecutiveFailures = 0;
   let pollerTimeout: NodeJS.Timeout | null = null;

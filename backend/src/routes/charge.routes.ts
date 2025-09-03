@@ -12,7 +12,7 @@ import { createCharge } from "../controller/charge.controller";
 const router = Router();
 
 router.get("/:id", getCharge);
-router.get("/:id/events", chargeEvents);
+// router.get("/:id/events", chargeEvents);
 router.get("/:id/qr.png", chargeQr);
 
 router.post("/:id/cancel", cancelCharge);

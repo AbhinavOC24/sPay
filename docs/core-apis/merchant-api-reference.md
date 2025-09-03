@@ -104,7 +104,6 @@ curl -X PUT https://stacks-gateway-backend.onrender.com/merchants/config \
 
 ```json
 {
-  "id": "merch_123",
   "payoutStxAddress": "STX123...",
   "webhookUrl": "https://merchant.com/webhook",
   "webhookSecret": "whsec_123..."
@@ -185,8 +184,13 @@ curl -X GET https://stacks-gateway-backend.onrender.com/merchants/charges \
       "status": "COMPLETED",
       "createdAt": "2025-08-18T17:40:00Z",
       "paidAt": "2025-08-18T17:45:00Z",
-      "payoutTxId": "0xabc123...",
+      "payerAddress": "ST123123VASD12",
+      "payoutTxId": "abc123...",
+      "order_id": "laptop",
       "failureReason": null
+    },
+    {
+      ...
     }
   ]
 }

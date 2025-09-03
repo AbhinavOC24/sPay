@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Copy, Check } from "lucide-react";
+
 import {
   Select,
   SelectContent,
@@ -106,7 +108,7 @@ export default function DashboardPage() {
     statusFilter === "all"
       ? charges
       : charges.filter((t) => t.status.toLowerCase() === statusFilter);
-
+  console.log(filteredTransactions);
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
@@ -275,6 +277,9 @@ export default function DashboardPage() {
                       Charge ID
                     </th>
                     <th className="text-left py-3 px-4 text-[#9aa4b2]">
+                      Order Id
+                    </th>
+                    <th className="text-left py-3 px-4 text-[#9aa4b2]">
                       Created
                     </th>
                     <th className="text-left py-3 px-4 text-[#9aa4b2]">
@@ -283,16 +288,23 @@ export default function DashboardPage() {
                     <th className="text-left py-3 px-4 text-[#9aa4b2]">
                       Status
                     </th>
+                    <th className="text-left py-3 px-4 text-[#9aa4b2]">
+                      Payer
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredTransactions.map((t) => (
+
+                {filteredTransactions.map((t) => (
+                  <tbody key={t.chargeId}>
                     <tr
                       key={t.chargeId}
                       className="border-b border-[#8787873f] hover:bg-[#1a1f26]"
                     >
-                      <td className="py-3 px-4 text-[#e6edf3]  text-sm">
+                      <td className="py-3 px-4 text-[#e6edf3] text-sm">
                         {t.chargeId}
+                      </td>
+                      <td className="py-3 px-4 text-[#e6edf3] text-sm">
+                        {t.order_id}
                       </td>
                       <td className="py-3 px-4 text-[#e6edf3]">
                         {new Date(t.createdAt).toLocaleString()}
@@ -304,9 +316,56 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4">{getStatusBadge(t.status)}</td>
+                      {/* New payer column */}
+                      <td className="py-3 px-4 ">
+                        {t.payerAddress ? (
+                          <div className="flex items-center  gap-2">
+                            {/* truncated address */}
+                            <span className="text-[#e6edf3] font-mono text-xs max-w-[140px] truncate">
+                              {t.payerAddress}
+                            </span>
+
+                            {/* copy button (always visible) */}
+                            <button
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(
+                                  t.payerAddress
+                                );
+                                const btn = document.getElementById(
+                                  `copy-${t.chargeId}`
+                                );
+                                if (btn) {
+                                  btn.dataset.copied = "true";
+                                  setTimeout(() => {
+                                    btn.dataset.copied = "false";
+                                  }, 1500);
+                                }
+                              }}
+                              id={`copy-${t.chargeId}`}
+                              data-copied="false"
+                              className="text-[#9aa4b2] hover:text-[#e6edf3] transition-colors"
+                              title="Copy payer address"
+                            >
+                              {/* default copy icon */}
+                              <Copy
+                                className="h-4 w-4"
+                                data-show-when="false"
+                              />
+                              {/* copied check icon */}
+                              <Check
+                                className="h-4 w-4 text-green-500"
+                                data-show-when="true"
+                                style={{ display: "none" }}
+                              />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[#9aa4b2] text-sm">—</span>
+                        )}
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
+                  </tbody>
+                ))}
               </table>
             </div>
           </CardContent>

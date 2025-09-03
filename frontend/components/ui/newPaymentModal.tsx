@@ -100,6 +100,11 @@ export default function NewPaymentModal() {
 
       {/* Modal content */}
       <div className="relative bg-[#1D1D1D] border border-[#8787873f]  p-6 rounded-lg shadow-lg w-full max-w-md z-10">
+        <div className="mb-4 p-3 rounded bg-[#2d1a0d] border border-[#f59e0b50] text-[#fbbf24] text-sm font-medium">
+          ⚠️ Make sure your <span className="font-bold">payout address </span>
+          and other necessary merchant settings are configured before creating a
+          charge.
+        </div>
         <h2 className="text-xl font-bold text-[#e6edf3]   mb-4">
           Create a New Payment
         </h2>

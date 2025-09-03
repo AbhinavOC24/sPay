@@ -37,6 +37,7 @@ export async function getCharge(req: Request, res: Response) {
       usdRate: true,
       success_url: true,
       cancel_url: true,
+      payerAddress: true,
     },
   });
   if (!c) return res.status(404).json({ error: "Not found" });
@@ -327,6 +328,7 @@ export async function createCharge(req: Request, res: Response) {
         amount: microAmount,
         success_url: parsed.data.success_url,
         cancel_url: parsed.data.cancel_url,
+        order_id: parsed.data.order_id,
         merchantid: merchant.id,
         idempotencyKey: key,
         usdRate: amountUsd,

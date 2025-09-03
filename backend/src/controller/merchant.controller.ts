@@ -16,7 +16,6 @@ export async function updateConfig(req: Request, res: Response) {
       where: { id: req.session.merchantId as string },
       data,
       select: {
-        id: true,
         payoutStxAddress: true,
         webhookUrl: true,
         webhookSecret: true,
@@ -25,7 +24,7 @@ export async function updateConfig(req: Request, res: Response) {
     res.json(updated);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "update_failed" });
+    res.status(500).json({ error: "Failed to update secrets" });
   }
 }
 
@@ -62,10 +61,10 @@ export async function signup(req: Request, res: Response) {
 
     req.session.authenticated = true;
     req.session.merchantId = merchant.id;
-    return res.status(201).json({ message: "signup_success", merchant });
+    return res.status(201).json({ message: "Signup succesful", merchant });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "signup_failed" });
+    return res.status(500).json({ error: "Signup failed" });
   }
 }
 
@@ -80,16 +79,16 @@ export async function login(req: Request, res: Response) {
     const { email, password } = parsed.data;
     const merchant = await prisma.merchant.findUnique({ where: { email } });
     if (!merchant)
-      return res.status(401).json({ error: "invalid_credentials" });
+      return res.status(401).json({ error: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, merchant.password);
-    if (!isMatch) return res.status(401).json({ error: "invalid_credentials" });
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
     req.session.authenticated = true;
     req.session.merchantId = merchant.id;
 
     return res.json({
-      message: "login_success",
+      message: "Login successful",
       merchant: {
         id: merchant.id,
         name: merchant.name,
@@ -103,15 +102,15 @@ export async function login(req: Request, res: Response) {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "login_failed" });
+    return res.status(500).json({ error: "Login failed" });
   }
 }
 
 export function logout(req: Request, res: Response) {
   req.session.destroy((err) => {
-    if (err) return res.status(500).json({ error: "logout_failed" });
+    if (err) return res.status(500).json({ error: "logout failed" });
     res.clearCookie("connect.sid");
-    return res.json({ message: "logout_success" });
+    return res.json({ message: "Logged out successfully" });
   });
 }
 
@@ -144,7 +143,9 @@ export async function listCharges(req: Request, res: Response) {
         status: true,
         createdAt: true,
         paidAt: true,
+        payerAddress: true,
         payoutTxId: true,
+        order_id: true,
         failureReason: true,
       },
     });
@@ -156,18 +157,19 @@ export async function listCharges(req: Request, res: Response) {
       status: c.status,
       createdAt: c.createdAt,
       paidAt: c.paidAt,
+      payerAddress: c.payerAddress,
       payoutTxId: c.payoutTxId,
+      order_id: c.order_id,
       failureReason: c.failureReason,
     }));
-
+    console.log(formatted);
     res.json({ charges: formatted });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "fetch_charges_failed" });
+    res.status(500).json({ error: "Failed to fetch charges" });
   }
 }
 
-// POST /merchant/api-secret/rotate
 export async function rotateApiSecret(req: Request, res: Response) {
   try {
     const newSecret = genApiSecret();
@@ -179,12 +181,12 @@ export async function rotateApiSecret(req: Request, res: Response) {
     });
 
     return res.json({
-      message: "secret_rotated",
+      message: "Secret rotated",
       apiKey: updated.apiKey,
       apiSecret: updated.apiSecret,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "rotate_failed" });
+    res.status(500).json({ error: "Couldnt rotate secrets" });
   }
 }

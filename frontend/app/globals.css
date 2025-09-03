@@ -143,3 +143,10 @@
     color: var(--muted-foreground);
   }
 }
+
+button[data-copied="true"] svg[data-show-when="true"] {
+  display: inline !important;
+}
+button[data-copied="true"] svg[data-show-when="false"] {
+  display: none !important;
+}

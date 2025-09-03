@@ -20,7 +20,9 @@ interface Charge {
   createdAt: string;
   amountSbtc: number;
   amountUsd: number;
+  payerAddress: string;
   status: string;
+  order_id: string;
 }
 
 interface RotateSecretResponse {

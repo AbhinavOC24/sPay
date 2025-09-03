@@ -97,6 +97,7 @@ curl -X GET https://stacks-gateway-backend.onrender.com/charges/[chargeId]
   "amount": 0.002,
   "status": "PENDING",
   "usdRate": 90.12,
+  "order_id": "sneakerRed",
   "createdAt": "2025-08-18T17:40:00Z",
   "expiresAt": "2025-08-18T17:55:00Z",
   "success_url": "https://merchant.com/success",

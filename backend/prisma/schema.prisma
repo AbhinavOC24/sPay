@@ -19,7 +19,9 @@ model Charge {
 address   String   @unique
   amount    BigInt
   status    String   @default("PENDING") 
+  payerAddress String?
   privKey   String?  
+  order_id  String
   merchantid String
   merchant Merchant @relation(fields: [merchantid],references: [id])
   idempotencyKey  String

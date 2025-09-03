@@ -1,5 +1,8 @@
 import prisma from "../../../db";
-import { hasRequiredSbtcBalance } from "../../blockchain/checksBTC";
+import {
+  getIncomingSbtcPayment,
+  hasRequiredSbtcBalance,
+} from "../../blockchain/checksBTC";
 import {
   isDatabaseConnectionError,
   safeDbOperation,
@@ -30,8 +33,49 @@ export async function processNewPayments(isShuttingDown: boolean) {
     if (isShuttingDown) break;
 
     try {
-      const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
-      if (paid) {
+      // const paid = await hasRequiredSbtcBalance(charge.address, charge.amount);
+      // if (paid) {
+      //   const updated = await safeDbOperation(
+      //     () =>
+      //       prisma.$transaction(async (tx) => {
+      //         const updated = await tx.charge.update({
+      //           where: { id: charge.id },
+      //           data: {
+      //             status: "CONFIRMED",
+      //             paidAt: new Date(),
+      //             lastProcessedAt: new Date(),
+      //           },
+      //           include: { merchant: true },
+      //         });
+
+      //         if (!updated.privKey) {
+      //           throw new Error(
+      //             `Missing temp wallet privKey for charge ${updated.chargeId}`
+      //           );
+      //         }
+      //         if (!updated.merchant?.payoutStxAddress) {
+      //           throw new Error(
+      //             `Missing merchant payout address for charge ${updated.chargeId}`
+      //           );
+      //         }
+
+      //         return updated;
+      //       }),
+      //     `processNewPayments:update:${charge.chargeId}`
+      //   );
+
+      //   if (updated) {
+      //     console.log(`💰 Charge ${charge.chargeId} payment confirmed`);
+      //   }
+      // }
+
+      const payment = await getIncomingSbtcPayment(
+        charge.address,
+        charge.amount
+      );
+      console.log(payment?.payer);
+
+      if (payment) {
         const updated = await safeDbOperation(
           () =>
             prisma.$transaction(async (tx) => {
@@ -41,6 +85,7 @@ export async function processNewPayments(isShuttingDown: boolean) {
                   status: "CONFIRMED",
                   paidAt: new Date(),
                   lastProcessedAt: new Date(),
+                  payerAddress: payment.payer, // 🔑 store payer
                 },
                 include: { merchant: true },
               });

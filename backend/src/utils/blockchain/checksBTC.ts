@@ -49,3 +49,34 @@ export async function hasRequiredSbtcBalance(
   }
   return false;
 }
+
+// Fetch latest sBTC payment into ephemeral address
+export async function getIncomingSbtcPayment(
+  address: string,
+  requiredAmount: bigint
+) {
+  const url = `${HIRO_API_BASE}/extended/v1/address/${address}/transactions_with_transfers?limit=10`;
+  const { data } = await axios.get(url, { timeout: 10000 });
+
+  for (const tx of data.results) {
+    // Look for fungible token transfers involving sbtc
+    const transfers = tx.ft_transfers || [];
+    for (const tr of transfers) {
+      if (
+        tr.asset_identifier.includes("sbtc-token") &&
+        tr.recipient === address
+      ) {
+        const amount = BigInt(tr.amount);
+        if (amount >= requiredAmount) {
+          return {
+            txid: tx.tx_id,
+            payer: tr.sender, // this is the Stacks address of the payer
+            amount,
+          };
+        }
+      }
+    }
+  }
+
+  return null;
+}
