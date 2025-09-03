@@ -150,7 +150,26 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+
           <div className="flex items-center space-x-3">
+            {/* Docs links */}
+            <a
+              href="https://spay-docs.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9aa4b2] hover:text-[#e6edf3] text-sm px-3 py-1 border border-[#8787873f] rounded-md"
+            >
+              Docs (Vercel)
+            </a>
+            <a
+              href="https://spay.gitbook.io/spay-docs/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9aa4b2] hover:text-[#e6edf3] text-sm px-3 py-1 border border-[#8787873f] rounded-md"
+            >
+              Docs (GitBook)
+            </a>
+
             <Button
               onClick={() => router.push("/settings")}
               variant="outline"
@@ -170,7 +189,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
-
       {/* Main Content */}
       <main className="p-6">
         {/* Stats */}
