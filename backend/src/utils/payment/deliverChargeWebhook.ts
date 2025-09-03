@@ -119,7 +119,7 @@ export async function deliverChargeCancelledWebhook({
     );
     return;
   }
-  console.log("paylord", payload, config);
+
   const eventId = `${payload.chargeId}:cancelled`;
   const nowIso = new Date().toISOString();
 
@@ -145,7 +145,7 @@ export async function deliverChargeCancelledWebhook({
           payload.chargeId
         }`
       );
-      console.log("inside cancel charge webhook");
+
       await axios.post(config.url, bodyJson, {
         headers: {
           "Content-Type": "application/json",

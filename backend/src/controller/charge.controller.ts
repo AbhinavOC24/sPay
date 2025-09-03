@@ -154,7 +154,7 @@ export async function cancelCharge(req: Request, res: Response) {
     if (!id) return res.status(400).json({ error: "missing_charge_id" });
 
     console.log(`🔄 Cancel request for charge: ${id}`);
-    console.log("CANCEL CHARGE GOT HITTTTT");
+
     const current = await prisma.charge.findUnique({
       where: { chargeId: id },
       select: {

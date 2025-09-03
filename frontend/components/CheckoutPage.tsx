@@ -56,7 +56,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
         a.address.startsWith("ST")
       )?.address;
       if (!stxAddress) throw new Error("No STX address from Leather");
-      console.log(userData.addresses);
+      // console.log(userData.addresses);
       const amountInMicroSTX = charge.amount;
 
       const pc = Pc.principal(stxAddress)
@@ -77,7 +77,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
         postConditionMode: "deny",
       });
 
-      console.log(response);
+      // console.log(response);
     } catch (err) {
       console.error("❌ Payment failed:", err);
     }
@@ -171,7 +171,7 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
         if (isMounted) {
           const data = res.data;
           setCharge(data);
-          console.log("Polling update:", data);
+          // console.log("Polling update:", data);
 
           // Success redirect
           if (data.status === "CONFIRMED" && data.success_url) {
