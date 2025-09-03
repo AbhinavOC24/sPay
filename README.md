@@ -92,7 +92,7 @@ This ensures merchants always receive their full sBTC amount without needing to 
 - **Blockchain**: Stacks
 - **Frontend (Merchant Dashboard)**: Next.js
 - **Frontend (Checkout)**: Vanilla HTML/CSS/JS
-- **Infra**: polling ( EventSource (SSE) yet to integrate)
+- **Infra**: Frontend currently uses polling until SSE is hooked up;SSE backend endpoints are ready;
 - **Security**: HMAC webhook signing, API key + secret auth
 
 ## 📂 Project Structure
@@ -122,15 +122,15 @@ src
 │   │   └── transferStx.ts
 │   ├── dbChecker/        # DB health monitor
 │   │   └── dbChecker.ts
-│   ├── eventBus.ts       # Internal event bus (SSE + updates) yet to refactor
+│   ├── eventBus.ts       # SSE backend endpoints are ready; frontend currently uses polling until SSE is hooked up.
 │   ├── keys.ts           # Key generators
 │   └── payment/          # Core payment state machine + helpers
 │       ├── chargeProcessor.ts #Core charge processing unit
 │       ├── deliverChargeWebhook.ts
 │       ├── feeCalculator.ts
 │       ├── markChargeFailed.ts
-│       ├── publicPayloadBuilder.ts
-│       └── publishChargeUpdate.ts
+│       ├── publicPayloadBuilder.ts #Builds payload for SSE
+│       └── publishChargeUpdate.ts  #publishes the payload via SSE eventbus 
 ├── zod/                  # Input validation schemas
 │   └── zodCheck.ts
 ├── index.ts              # Express entrypoint
