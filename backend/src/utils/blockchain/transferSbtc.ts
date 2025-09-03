@@ -17,6 +17,7 @@ const SBTC_CONTRACT_ADDRESS = "ST1F7QA2MDF17S807EPA36TSS8AMEFY4KA9TVGWXT";
 const SBTC_CONTRACT_NAME = "sbtc-token";
 const ASSET_NAME = "sbtc-token";
 const TRANSFER_FN = "transfer";
+const FALLBACK_FEE = BigInt(300);
 
 function asPrincipal(addr: string, label: string) {
   const v = (addr ?? "").trim().toUpperCase();
@@ -44,19 +45,44 @@ export async function transferSbtc(
       .willSendEq(amountMicroSBTC)
       .ft(`${SBTC_CONTRACT_ADDRESS}.${SBTC_CONTRACT_NAME}`, ASSET_NAME),
   ];
+  try {
+    const tx = await makeContractCall({
+      contractAddress: SBTC_CONTRACT_ADDRESS,
+      contractName: SBTC_CONTRACT_NAME,
+      functionName: TRANSFER_FN,
+      functionArgs: [uintCV(amountMicroSBTC), senderCV, recipientCV, noneCV()],
+      senderKey, // signs as the temp wallet (tx-sender)
+      network,
+      postConditionMode: PostConditionMode.Deny,
+      postConditions,
+    });
 
-  const tx = await makeContractCall({
-    contractAddress: SBTC_CONTRACT_ADDRESS,
-    contractName: SBTC_CONTRACT_NAME,
-    functionName: TRANSFER_FN,
-    functionArgs: [uintCV(amountMicroSBTC), senderCV, recipientCV, noneCV()],
-    senderKey, // signs as the temp wallet (tx-sender)
-    network,
-    postConditionMode: PostConditionMode.Deny,
-    postConditions,
-  });
+    const result = await broadcastTransaction({ transaction: tx, network });
 
-  const result = await broadcastTransaction({ transaction: tx, network });
-  console.log(ReadableStreamDefaultController);
-  return result; // { txid }
+    return result; // { txid }
+  } catch (error) {
+    // Retry with static fallback fee
+    const tx = await makeContractCall({
+      contractAddress: SBTC_CONTRACT_ADDRESS,
+      contractName: SBTC_CONTRACT_NAME,
+      functionName: TRANSFER_FN,
+      functionArgs: [uintCV(amountMicroSBTC), senderCV, recipientCV, noneCV()],
+      senderKey,
+      network,
+      postConditionMode: PostConditionMode.Deny,
+      postConditions,
+      fee: FALLBACK_FEE,
+    });
+
+    const result = await broadcastTransaction({ transaction: tx, network });
+    if ("txid" in result) {
+      console.log(
+        `📤 SBTC payout broadcasted with fallback fee, txid: ${result.txid}`
+      );
+      return { txid: result.txid };
+    }
+    throw new Error(
+      `Broadcast with fallback fee failed: ${JSON.stringify(result)}`
+    );
+  }
 }

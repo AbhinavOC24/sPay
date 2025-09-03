@@ -6,11 +6,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 
-import {
-  recoverStuckCharges,
-  retryFailedWebhooks,
-  startChargeProcessor,
-} from "./utils/payment/chargeProcessor";
+import { startChargeProcessor } from "./utils/payment/chargeProcessor";
 import merchantRoutes from "./routes/merchant.routes";
 import chargeRoutes from "./routes/charge.routes";
 
@@ -67,7 +63,4 @@ app.listen(process.env.BACKEND_PORT, () => {
   console.log(`listening on port ${process.env.BACKEND_PORT}`);
 
   startChargeProcessor();
-  setInterval(() => retryFailedWebhooks(), 60_000);
-
-  setInterval(() => recoverStuckCharges(), 5 * 60_000);
 });
