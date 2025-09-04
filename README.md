@@ -99,42 +99,54 @@ This ensures merchants always receive their full sBTC amount without needing to 
 
 ```
 src
-├── controller/           # Controllers for routes
+├── controller
 │   ├── charge.controller.ts
 │   └── merchant.controller.ts
-├── db/                   # Prisma client (singleton)
+├── db
 │   └── index.ts
-├── middleware/           # Auth middleware (API key + secret)
+├── express.d.ts
+├── index.ts
+├── middleware
 │   └── auth.ts
-├── mock-webhook-server.ts # Local test server for webhook dev
-├── routes/               # Express routers
+├── mock-webhook-server.ts
+├── routes
 │   ├── charge.routes.ts
 │   └── merchant.routes.ts
-├── types/                # Shared TS types
+├── types
 │   └── types.ts
-├── utils/
-│   ├── blockchain/       # Blockchain helpers (sBTC + STX)
-│   │   ├── checksBTC.ts
-│   │   ├── checkTxStatus.ts
-│   │   ├── deriveHotWallet.ts 
-│   │   ├── fetchUsdExchangeRate.ts
-│   │   ├── transferSbtc.ts
-│   │   └── transferStx.ts
-│   ├── dbChecker/        # DB health monitor
-│   │   └── dbChecker.ts
-│   ├── eventBus.ts       # SSE backend endpoints are ready; frontend currently uses polling until SSE is hooked up.
-│   ├── keys.ts           # Key generators
-│   └── payment/          # Core payment state machine + helpers
-│       ├── chargeProcessor.ts #Core charge processing unit
-│       ├── deliverChargeWebhook.ts
-│       ├── feeCalculator.ts
-│       ├── markChargeFailed.ts
-│       ├── publicPayloadBuilder.ts #Builds payload for SSE
-│       └── publishChargeUpdate.ts  #publishes the payload via SSE eventbus 
-├── zod/                  # Input validation schemas
-│   └── zodCheck.ts
-├── index.ts              # Express entrypoint
-└── express.d.ts          # Type declarations
+├── utils
+│   ├── blockchain
+│   │   ├── checksBTC.ts            # Validate sBTC transactions
+│   │   ├── checkTxStatus.ts        # Poll blockchain for tx status
+│   │   ├── deriveHotWallet.ts      # Derive hot/ephemeral wallets
+│   │   ├── fetchUsdExchangeRate.ts # Fetch BTC/USD exchange rate
+│   │   ├── refundCharge.ts         # Refund customer transactions
+│   │   ├── transferSbtc.ts         # Perform sBTC transfers
+│   │   └── transferStx.ts          # Perform STX transfers (gas/refunds)
+│   │
+│   ├── dbChecker
+│   │   └── dbChecker.ts            # DB health monitoring + safe ops
+│   │
+│   ├── eventBus.ts                 # Pub/Sub system (SSE backend ready; Frontend implements polling)
+│   ├── keys.ts                     # API key + secret generators
+│   │
+│   └── payment
+│       ├── chargeProcessor.ts         # Core state machine orchestrator
+│       ├── chargeProcessorComponents  # Modular pipeline steps
+│       │   ├── expireOldCharges.ts      # Expire charges after TTL
+│       │   ├── processNewPayments.ts    # Detect & verify new payments PENDING->CONFIRMED
+│       │   ├── processPayoutInitiated.ts# Mark payouts as initiated    CONFIRMED->PAYOUT_INITIATED
+│       │   ├── processPayoutConfirmed.ts# Confirm payout completion    PAYOUT_INITIATED->PAYOUT_CONFIRMED->COMPLETED
+│       │   ├── recoverStuckCharges.ts   # Recover stuck charges        FOR REFUNDS AND OTHER RETRIALS
+│       │   └── retryFailedWebhooks.ts   # Retry undelivered webhooks      
+│       ├── deliverChargeWebhook.ts     # Deliver webhooks to merchants
+│       ├── feeCalculator.ts            # Compute tx fees + buffers
+│       ├── markChargeFailed.ts         # Mark charge as failed
+│       ├── publicPayloadBuilder.ts     # Build payloads (SSE/webhooks)
+│       └── publishChargeUpdate.ts      # Publish updates → eventBus/SSE
+└── zod
+    └── zodCheck.ts
+
 ```
 
 ### ⚙️ Charge Processor  
