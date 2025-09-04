@@ -144,15 +144,6 @@ export function startChargeProcessor() {
             );
           }
         }, 60_000);
-
-        // Recover stuck charges every 5 minutes
-        setInterval(() => {
-          if (!isProcessing && !isShuttingDown) {
-            recoverStuckCharges(isShuttingDown).catch((err) =>
-              console.error("❌ Recovery cycle failed:", err)
-            );
-          }
-        }, 5 * 60_000);
       } else {
         console.error(
           "❌ Initial database health check failed, retrying in 10 seconds"

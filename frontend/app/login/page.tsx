@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useMerchantStore } from "@/store/useMerchantStore";
 import left_bg from "../../public/login_left.svg";
 import Image from "next/image";
+import axios from "axios";
 export default function LoginPage() {
   const router = useRouter();
 
@@ -31,6 +32,23 @@ export default function LoginPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    const checkMerchant = async () => {
+      try {
+        const res = await axios.get(`/backend/merchants/me`, {
+          withCredentials: true,
+        });
+
+        if (res.data && res.data.id) {
+          router.push("/dashboard");
+        }
+      } catch (err) {
+        console.log("No active merchant session");
+      }
+    };
+
+    checkMerchant();
+  }, [router]);
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));

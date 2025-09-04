@@ -128,10 +128,10 @@ export async function processPayoutConfirmed(isShuttingDown: boolean) {
           }
         }
       } else if (txStatus.isFailed) {
-        await markChargeFailed(
-          charge.chargeId,
-          `Payout transaction failed: ${txStatus.failureReason}`
-        );
+        // await markChargeFailed(
+        //   charge.chargeId,
+        //   `Payout transaction failed: ${txStatus.failureReason}`
+        // );
         console.error(
           `❌ Payout failed for charge ${charge.chargeId}: ${txStatus.failureReason}`
         );

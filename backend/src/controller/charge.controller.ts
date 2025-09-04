@@ -19,6 +19,8 @@ import { transferAllStx, transferStx } from "../utils/blockchain/transferStx";
 import { deliverChargeCancelledWebhook } from "../utils/payment/deliverChargeWebhook";
 import { publishChargeUpdate } from "../utils/payment/publishChargeUpdate";
 
+const TTL_MIN = parseInt(process.env.CHARGE_TTL_MIN || "15", 10);
+
 // GET /charges/:id
 export async function getCharge(req: Request, res: Response) {
   const { id } = req.params;
@@ -318,7 +320,6 @@ export async function createCharge(req: Request, res: Response) {
     const dynamicFeeBuffer = await calculateFeeBuffer();
     await transferStx(stxPrivateKey, address, dynamicFeeBuffer);
 
-    const TTL_MIN = 15;
     const expiresAt = new Date(Date.now() + TTL_MIN * 60 * 1000);
     const charge = await prisma.charge.create({
       data: {

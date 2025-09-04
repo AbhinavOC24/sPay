@@ -48,7 +48,7 @@ export async function hasRequiredSbtcBalance(
     }
   }
   return false;
-}
+} //not used
 
 // Fetch latest sBTC payment into ephemeral address
 export async function getIncomingSbtcPayment(

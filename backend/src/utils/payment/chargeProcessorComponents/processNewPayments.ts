@@ -73,7 +73,6 @@ export async function processNewPayments(isShuttingDown: boolean) {
         charge.address,
         charge.amount
       );
-      console.log(payment?.payer);
 
       if (payment) {
         const updated = await safeDbOperation(

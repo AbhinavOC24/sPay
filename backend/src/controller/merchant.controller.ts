@@ -162,7 +162,7 @@ export async function listCharges(req: Request, res: Response) {
       order_id: c.order_id,
       failureReason: c.failureReason,
     }));
-    console.log(formatted);
+
     res.json({ charges: formatted });
   } catch (err) {
     console.error(err);
