@@ -180,16 +180,61 @@ npm install
 ### 2. Backend Environment Setup
 
 ```env
+# ---------------------------
+# Server
+# ---------------------------
 BACKEND_PORT=8000
-DATABASE_URL=
-DIRECT_URL=
-JWT_SECRET=
-mnemonicString = //masterWallet
-password= //used for temporary wallet generation
-NODE_ENV="development"
-BACKEND_URL=
-FRONTEND_URL=
-POLL_INTERVAL_MS= // Poll interval for chargeProcessor, Default polling interval is every 30s
+NODE_ENV=development
+
+BACKEND_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:3000
+
+# ---------------------------
+# Database (Supabase)
+# ---------------------------
+
+# Connection pooling (PGBouncer)
+DATABASE_URL="postgresql://username:password@host:6543/dbname?pgbouncer=true"
+
+# Direct connection (used for migrations)
+DIRECT_URL="postgresql://username:password@host:5432/dbname?connection_limit=12&pool_timeout=30&connect_timeout=10&sslmode=require"
+
+# ---------------------------
+# Security
+# ---------------------------
+JWT_SECRET=your_jwt_secret_here
+
+# ---------------------------
+# Wallets
+# ---------------------------
+
+# Master Wallet
+mnemonicString="your twelve or twenty-four word seed phrase goes here"
+
+# Wallet generation
+password=your_wallet_password_here
+
+# ---------------------------
+# Charge Recovery / Lifecycle (Default values mentioned unless changed)
+# ---------------------------
+RECOVERY_STUCK_THRESHOLD_MS=300000   # 5 minutes
+MAX_LIFETIME_MS=1800000              # 30 minutes
+LOOP_DELAY_MS=200
+BATCH_SIZE=10
+ALLOW_REFUND=true
+FORCE_COMPLETE_WEBHOOKS=true
+LOG_LEVEL=info
+
+# ---------------------------
+# Polling Intervals (Default values mentioned unless changed)
+# ---------------------------
+POLL_INTERVAL_MS=10000      # 10s
+RECOVERY_INTERVAL_MS=1800000 # 30m
+
+# ---------------------------
+# Charge TTL
+# ---------------------------
+CHARGE_TTL_MIN=15
 ```
 
 ### 3. Run Backend
