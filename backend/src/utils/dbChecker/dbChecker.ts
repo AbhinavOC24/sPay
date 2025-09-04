@@ -68,17 +68,16 @@ export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1 as health_check`;
     lastDbHealthCheck = Date.now();
-    console.log("✅ Database health check passed");
+
     return true;
   } catch (error) {
-    console.error("❌ Database health check failed:", error);
     return false;
   }
 }
 
 export async function handleDatabaseReconnection(): Promise<void> {
   try {
-    console.log("🔄 Attempting database reconnection...");
+    console.log("Attempting database reconnection...");
 
     await prisma.$disconnect();
 
@@ -90,9 +89,9 @@ export async function handleDatabaseReconnection(): Promise<void> {
     await checkDatabaseHealth();
 
     consecutiveDbErrors = 0;
-    console.log("✅ Database reconnection successful");
+    console.log("Database reconnection successful");
   } catch (error) {
-    console.error("❌ Database reconnection failed:", error);
+    console.error("Database reconnection failed:", error);
     throw error;
   }
 }

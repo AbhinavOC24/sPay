@@ -23,12 +23,6 @@ export async function hasRequiredSbtcBalance(
       const balance = BigInt(data.fungible_tokens[sbtcKey].balance || "0");
       const hasEnough = balance >= requiredAmount;
 
-      if (hasEnough) {
-        console.log(
-          `💰 Address ${address} has sufficient balance: ${balance} >= ${requiredAmount}`
-        );
-      }
-
       return hasEnough;
     } catch (error: any) {
       console.error(

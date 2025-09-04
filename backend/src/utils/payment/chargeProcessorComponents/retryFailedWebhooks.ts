@@ -21,7 +21,7 @@ export async function retryFailedWebhooks(isShuttingDown: boolean) {
   if (!payoutConfirmedCharges) return;
 
   console.log(
-    `🔄 Found ${payoutConfirmedCharges.length} failed webhooks to retry`
+    `Found ${payoutConfirmedCharges.length} failed webhooks to retry`
   );
 
   for (const charge of payoutConfirmedCharges) {
@@ -53,9 +53,7 @@ export async function retryFailedWebhooks(isShuttingDown: boolean) {
             }),
           `retryFailedWebhooks:complete:${charge.chargeId}`
         );
-        console.log(
-          `📧 Webhook retry successful for charge ${charge.chargeId}`
-        );
+        console.log(`Webhook retry successful for charge ${charge.chargeId}`);
       } else {
         console.error(
           `📧 Webhook retry still failing for charge ${charge.chargeId}`

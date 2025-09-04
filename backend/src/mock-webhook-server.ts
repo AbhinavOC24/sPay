@@ -45,19 +45,11 @@ app.post("/webhook", (req, res) => {
   }
 
   if (processed.has(eventId)) {
-    console.log(`📩 duplicate event ${eventId} ignored`);
     res.status(200).send("duplicate ignored");
     return;
   }
 
   const payload = JSON.parse(raw.toString("utf8"));
-  console.log("📩 Webhook received:", {
-    eventId,
-    type: payload.type,
-    chargeId: payload.data?.chargeId,
-  });
-
-  // …process once (fulfill order/credit account/etc)…
 
   processed.add(eventId);
   res.status(200).send("ok");

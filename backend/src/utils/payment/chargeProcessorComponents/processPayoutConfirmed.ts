@@ -22,13 +22,13 @@ export async function processPayoutConfirmed(isShuttingDown: boolean) {
 
   if (!payoutInitiatedCharges) {
     console.log(
-      "⚠️ Could not fetch payout initiated charges, skipping this batch"
+      " Could not fetch payout initiated charges, skipping this batch"
     );
     return;
   }
 
   console.log(
-    `🔍 Found ${payoutInitiatedCharges.length} payouts to check for confirmation`
+    `Found ${payoutInitiatedCharges.length} payouts to check for confirmation`
   );
 
   for (const charge of payoutInitiatedCharges) {
@@ -91,12 +91,12 @@ export async function processPayoutConfirmed(isShuttingDown: boolean) {
                     }),
                   `processPayoutConfirmed:complete:${charge.chargeId}`
                 );
-                console.log(`🎉 Charge ${charge.chargeId} fully completed`);
+                console.log(`Charge ${charge.chargeId} fully completed`);
                 console.log("Pushing from processPayoutconfirmed");
 
                 // await publishChargeUpdate(updatedCharge.chargeId);
                 console.log(
-                  `✅ SBTC payout confirmed for charge ${charge.chargeId}`
+                  ` SBTC payout confirmed for charge ${charge.chargeId}`
                 );
               } else {
                 console.error(
@@ -124,7 +124,7 @@ export async function processPayoutConfirmed(isShuttingDown: boolean) {
             );
             // await publishChargeUpdate(updatedCharge.chargeId);
 
-            console.log(`✅ Charge ${charge.chargeId} completed (no webhook)`);
+            console.log(` Charge ${charge.chargeId} completed (no webhook)`);
           }
         }
       } else if (txStatus.isFailed) {
@@ -165,9 +165,9 @@ export async function processPayoutConfirmed(isShuttingDown: boolean) {
           );
         } else {
           console.log(
-            `⏳ Payout still pending for charge ${
-              charge.chargeId
-            } (${Math.round(timeSinceInitiated / 1000)}s elapsed)`
+            `Payout still pending for charge ${charge.chargeId} (${Math.round(
+              timeSinceInitiated / 1000
+            )}s elapsed)`
           );
         }
       }

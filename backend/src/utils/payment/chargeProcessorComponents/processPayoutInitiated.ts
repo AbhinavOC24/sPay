@@ -18,12 +18,12 @@ export async function processPayoutInitiated(isShuttingDown: boolean) {
   );
 
   if (!confirmedCharges) {
-    console.log("⚠️ Could not fetch confirmed charges, skipping this batch");
+    console.log("Could not fetch confirmed charges, skipping this batch");
     return;
   }
 
   console.log(
-    `🔄 Found ${confirmedCharges.length} confirmed charges ready for payout`
+    `Found ${confirmedCharges.length} confirmed charges ready for payout`
   );
 
   for (const charge of confirmedCharges) {
@@ -45,12 +45,12 @@ export async function processPayoutInitiated(isShuttingDown: boolean) {
 
       if (!claim) {
         console.log(
-          `⚠️ Charge ${charge.chargeId} not claimed (status changed or db error)`
+          ` Charge ${charge.chargeId} not claimed (status changed or db error)`
         );
         continue;
       }
 
-      console.log(`🚀 Initiating payout for charge ${charge.chargeId}`);
+      console.log(` Initiating payout for charge ${charge.chargeId}`);
 
       if (!charge.privKey) {
         throw new Error(
@@ -69,7 +69,6 @@ export async function processPayoutInitiated(isShuttingDown: boolean) {
         charge.merchant.payoutStxAddress,
         charge.amount
       );
-      // console.log("TX id form transferSbtc", txid); for debugging if sBTC tx'ed from ephermal to merchant
 
       const updated = await safeDbOperation(
         () =>

@@ -51,12 +51,12 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       const walletConnect = await connect();
       const userData = getLocalStorage();
       if (!userData) return;
-      // const stxAddress = userData.addresses.stx[0].address;
+
       const stxAddress = userData.addresses.stx.find((a) =>
         a.address.startsWith("ST")
       )?.address;
       if (!stxAddress) throw new Error("No STX address from Leather");
-      // console.log(userData.addresses);
+
       const amountInMicroSTX = charge.amount;
 
       const pc = Pc.principal(stxAddress)
@@ -73,17 +73,14 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
           Cl.none(),
         ],
         network: "testnet",
-        postConditions: [postConditionToHex(pc)], // wallet expects hex
+        postConditions: [postConditionToHex(pc)],
         postConditionMode: "deny",
       });
-
-      // console.log(response);
     } catch (err) {
       console.error("❌ Payment failed:", err);
     }
   };
 
-  //fetch Initial state
   useEffect(() => {
     axios
       .get(`/backend/charges/${chargeId}`, {
@@ -94,72 +91,6 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
       .catch(console.error);
   }, [chargeId]);
 
-  //SSE
-  // useEffect(() => {
-  //   const es = new EventSource(`/backend/charges/${chargeId}/events`);
-
-  //   es.addEventListener("charge.updated", (e) => {
-  //     try {
-  //       const data = JSON.parse((e as MessageEvent).data);
-  //       console.log("SSE charge update received:", data); // Debug log
-
-  //       setCharge(data);
-
-  //       // Success redirection logic with 3 second timeout
-  //       if (data.status === "CONFIRMED" && data.success_url) {
-  //         const url = new URL(data.success_url);
-  //         url.searchParams.set("charge_id", data.chargeId);
-  //         if (data.txid) url.searchParams.set("txid", data.txid);
-  //         url.searchParams.set("status", "CONFIRMED");
-
-  //         console.log("SSE - SUCCESS redirect to:", url.toString());
-  //         alert("SUCCESS");
-
-  //         setTimeout(() => {
-  //           window.location.href = url.toString();
-  //         }, 3000);
-  //       }
-
-  //       // Cancel/expired redirection logic with 3 second timeout
-  //       if (data.status === "CANCELLED" && data.cancel_url) {
-  //         const url = new URL(data.cancel_url);
-  //         url.searchParams.set("charge_id", data.chargeId);
-  //         url.searchParams.set("status", data.status);
-
-  //         console.log("SSE - CANCEL redirect to:", url.toString());
-  //         alert(`REDIRECT TO CANCEL - Status: ${data.status}`);
-
-  //         setTimeout(() => {
-  //           window.location.href = url.toString();
-  //         }, 3000);
-  //       }
-  //     } catch (err) {
-  //       console.error("Error parsing SSE:", err);
-  //     }
-  //   });
-
-  //   es.onerror = (error) => {
-  //     console.error("SSE error:", error);
-  //     es.close();
-
-  //     // Fallback polling
-  //     const pollInterval = setInterval(async () => {
-  //       try {
-  //         const res = await axios.get(`/backend/charges/${chargeId}`);
-  //         console.log("Polling update:", res.data); // Debug log
-  //         setCharge(res.data);
-  //       } catch (err) {
-  //         console.error("Polling error:", err);
-  //       }
-  //     }, 5000);
-
-  //     return () => clearInterval(pollInterval);
-  //   };
-
-  //   return () => es.close();
-  // }, [chargeId]);
-
-  // === Polling for updates ===
   useEffect(() => {
     let isMounted = true;
 
@@ -171,16 +102,13 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
         if (isMounted) {
           const data = res.data;
           setCharge(data);
-          // console.log("Polling update:", data);
 
-          // Success redirect
           if (data.status === "CONFIRMED" && data.success_url) {
             const url = new URL(data.success_url);
             url.searchParams.set("charge_id", data.chargeId);
             if (data.txid) url.searchParams.set("txid", data.txid);
             url.searchParams.set("status", "CONFIRMED");
 
-            console.log("Polling - SUCCESS redirect:", url.toString());
             setTimeout(() => {
               window.location.href = url.toString();
             }, 3000);
@@ -192,7 +120,6 @@ export default function CheckoutPage({ chargeId }: { chargeId: string }) {
             url.searchParams.set("charge_id", data.chargeId);
             url.searchParams.set("status", data.status);
 
-            console.log("Polling - CANCEL redirect:", url.toString());
             setTimeout(() => {
               window.location.href = url.toString();
             }, 3000);

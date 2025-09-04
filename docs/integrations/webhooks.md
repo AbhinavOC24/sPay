@@ -82,9 +82,7 @@ app.post("/webhook", (req, res) => {
     return res.status(400).send("stale");
   }
 
-  // Deduplicate by eventId
-  // (store in DB/Redis; example just uses memory)
-  console.log("📩 Webhook received:", raw.toString("utf8"));
+  console.log(" Webhook received:", raw.toString("utf8"));
 
   res.status(200).send("ok");
 });

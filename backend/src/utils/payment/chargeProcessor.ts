@@ -30,7 +30,7 @@ export function startChargeProcessor() {
 
   // Graceful shutdown handler
   const gracefulShutdown = async () => {
-    console.log("🛑 Shutting down charge processor gracefully...");
+    console.log("Shutting down charge processor gracefully...");
     isShuttingDown = true;
 
     if (pollerTimeout) {
@@ -48,12 +48,12 @@ export function startChargeProcessor() {
 
     try {
       await prisma.$disconnect();
-      console.log("✅ Database disconnected cleanly");
+      console.log("Database disconnected cleanly");
     } catch (e) {
-      console.warn("⚠️ Error during database disconnect:", e);
+      console.warn(" Error during database disconnect:", e);
     }
 
-    console.log("✅ Charge processor shut down complete");
+    console.log(" Charge processor shut down complete");
     process.exit(0);
   };
 
@@ -66,7 +66,7 @@ export function startChargeProcessor() {
     try {
       await processPendingCharges();
       consecutiveFailures = 0;
-      console.log(`✅ Processing cycle completed successfully`);
+      console.log(` Processing cycle completed successfully`);
     } catch (error: any) {
       consecutiveFailures++;
       console.error(
@@ -76,15 +76,15 @@ export function startChargeProcessor() {
 
       if (isDatabaseConnectionError(error)) {
         console.log(
-          "🔌 Database connection error detected, attempting recovery..."
+          " Database connection error detected, attempting recovery..."
         );
         try {
           await handleDatabaseReconnection();
-          console.log("✅ Database reconnection successful, continuing...");
+          console.log("Database reconnection successful, continuing...");
         } catch (reconnectError) {
-          console.error("❌ Database reconnection failed:", reconnectError);
+          console.error(" Database reconnection failed:", reconnectError);
           if (consecutiveFailures >= maxFailures) {
-            console.error("💀 Too many failures, shutting down...");
+            console.error("Too many failures, shutting down...");
             await gracefulShutdown();
             return;
           }
@@ -107,16 +107,16 @@ export function startChargeProcessor() {
     const backoffMultiplier = Math.min(consecutiveFailures, 4); // Cap at 4x
     const nextInterval = baseInterval * Math.pow(1.5, backoffMultiplier); // Gentler backoff
 
-    console.log(`⏰ Next poll in ${Math.round(nextInterval / 1000)} seconds`);
+    console.log(`Next poll in ${Math.round(nextInterval / 1000)} seconds`);
     pollerTimeout = setTimeout(pollWithRetry, nextInterval);
   }
 
   // Initial health checks
-  console.log("🚀 Starting charge processor...");
+  console.log("Starting charge processor...");
   checkDatabaseHealth()
     .then((healthy) => {
       if (healthy) {
-        console.log("✅ Initial database health check passed, starting poller");
+        console.log("Initial database health check passed, starting poller");
         pollWithRetry();
         // Start recovery timer (every 30 min by default)
         const RECOVERY_INTERVAL_MS = Number(
@@ -130,9 +130,7 @@ export function startChargeProcessor() {
               console.error("❌ Recovery cycle failed:", err);
             }
           } else {
-            console.log(
-              "⏳ Skipping recovery (processor busy or shutting down)"
-            );
+            console.log("Skipping recovery (processor busy or shutting down)");
           }
         }, RECOVERY_INTERVAL_MS);
 

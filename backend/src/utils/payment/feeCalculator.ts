@@ -10,10 +10,10 @@ export async function calculateFeeBuffer(): Promise<bigint> {
     const assumedSize = 1000; // contract calls ~800–1200 bytes
     const estimated = feeRate * assumedSize;
     const buffer = BigInt(Math.ceil(estimated * 2)); // 2x buffer
-    console.log(`💸 Preload buffer: ${buffer} µSTX`);
+    console.log(`Preload buffer: ${buffer} µSTX`);
     return buffer;
   } catch (err) {
-    console.error("⚠️ Fee buffer fallback");
+    console.error(" Fee buffer fallback");
     return 10_000n; // ~0.01 STX
   }
 }
@@ -38,11 +38,11 @@ export async function getContractCallFee(
       throw new Error("No fee estimates returned");
     }
 
-    const fee = BigInt(res.data.estimations[1].fee); // pick medium
-    console.log(`💰 Recommended fee: ${fee} µSTX`);
+    const fee = BigInt(res.data.estimations[1].fee);
+    console.log(` Recommended fee: ${fee} µSTX`);
     return fee;
   } catch (err) {
-    console.error("⚠️ Fee estimation failed", err);
-    return 10_000n; // fallback
+    console.error(" Fee estimation failed", err);
+    return 10_000n;
   }
 }

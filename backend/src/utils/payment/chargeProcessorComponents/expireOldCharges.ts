@@ -26,7 +26,7 @@ export async function expireOldCharges() {
     data: { status: "EXPIRED" },
   });
 
-  console.log(`⏳ Marked ${expired.count} charges as EXPIRED`);
+  console.log(` Marked ${expired.count} charges as EXPIRED`);
 
   // refund fee buffers
   try {
@@ -36,7 +36,7 @@ export async function expireOldCharges() {
 
     for (const c of expiredCharges) {
       try {
-        console.log(`♻️ Refunding fee buffer for expired charge ${c.chargeId}`);
+        console.log(`Refunding fee buffer for expired charge ${c.chargeId}`);
         await transferAllStx(c.privKey as string, hotAddr);
       } catch (err) {
         console.error(`⚠️ Failed refund for ${c.chargeId}:`, err);

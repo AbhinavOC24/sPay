@@ -156,8 +156,6 @@ export async function cancelCharge(req: Request, res: Response) {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: "missing_charge_id" });
 
-    console.log(`🔄 Cancel request for charge: ${id}`);
-
     const current = await prisma.charge.findUnique({
       where: { chargeId: id },
       select: {
@@ -201,7 +199,6 @@ export async function cancelCharge(req: Request, res: Response) {
       const { stxAddress: hotAddr } = await deriveHotWallet(
         process.env.mnemonicString as string
       );
-      console.log(`♻️ Refunding fee buffer from temp → hot wallet: `);
 
       // Sweep all balance back (minus a fee)
       await transferAllStx(current.privKey as string, hotAddr);
@@ -230,9 +227,6 @@ export async function cancelCharge(req: Request, res: Response) {
       },
     });
 
-    console.log(
-      `✅ Charge cancelled successfully. New status: ${updatedCharge?.status}`
-    );
     if (updatedCharge) {
       const hasWebhook =
         !!updatedCharge.merchant?.webhookUrl &&

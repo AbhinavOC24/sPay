@@ -8,12 +8,12 @@
 sPay is a developer-friendly **payment gateway for sBTC**. It lets businesses accept sBTC payments seamlessly via the Stacks blockchain, with the UX simplicity of Stripe.
 
 - ⚡ **Fast setup** – create charges via API, redirect customers to checkout, and receive webhooks.
-- 🔄 **Stripe-like state machine** – charges flow through a well-defined lifecycle, ensuring consistency and reliability.  
-- 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.  
-- 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.  
-- ♻️ **Idempotent design** – charge creation and webhook delivery are idempotent, preventing duplicates.  
-- ⚙️ **Atomic operations** – ensures payment status updates, transfers, and webhooks stay consistent.  
-- 🩺 **DB resilience** – automatic checks and recovery if the database restarts, errors, or drops connections.  
+- 🔄 **Stripe-like state machine** – charges flow through a well-defined lifecycle, ensuring consistency and reliability.
+- 🛡 **Secure** – temporary wallets per charge, HMAC-signed webhooks, no secrets leaked client-side.
+- 🖥 **Clean DX/UX** – polished checkout UI, developer docs, and a basic merchant dashboard.
+- ♻️ **Idempotent design** – charge creation and webhook delivery are idempotent, preventing duplicates.
+- ⚙️ **Atomic operations** – ensures payment status updates, transfers, and webhooks stay consistent.
+- 🩺 **DB resilience** – automatic checks and recovery if the database restarts, errors, or drops connections.
 
 ## 📖 Documentation
 
@@ -65,11 +65,11 @@ This ensures merchants always receive their full sBTC amount without needing to 
 
 ### 🔐 Advantages of Using Temporary (Ephemeral) Wallets
 
-- **Per-charge isolation** – each customer payment uses its own wallet, minimizing blast radius if compromised.  
-- **No merchant exposure** – merchants never need to expose or share their payout wallet in checkout flows.  
-- **Cleaner accounting** – easy to track and reconcile charges, since each wallet maps 1:1 with a payment session.  
-- **Automatic sweep** – funds are forwarded to the merchant payout wallet once confirmed, keeping temp wallets empty long term.  
-- **Improved security posture** – reduces the chance of replay or double-spend attacks against a merchant’s main wallet.  
+- **Per-charge isolation** – each customer payment uses its own wallet, minimizing blast radius if compromised.
+- **No merchant exposure** – merchants never need to expose or share their payout wallet in checkout flows.
+- **Cleaner accounting** – easy to track and reconcile charges, since each wallet maps 1:1 with a payment session.
+- **Automatic sweep** – funds are forwarded to the merchant payout wallet once confirmed, keeping temp wallets empty long term.
+- **Improved security posture** – reduces the chance of replay or double-spend attacks against a merchant’s main wallet.
 
 ## 🎥 Demo Video
 
@@ -77,14 +77,14 @@ This ensures merchants always receive their full sBTC amount without needing to 
 
 ## 🚀 Features
 
-- **Stripe-like state machine** – ensures reliable charge lifecycle management  
-- Hosted **checkout page** with QR code + live status  
-- Auto-transfer from **temp wallet → merchant payout wallet**  
-- **Webhook delivery** with HMAC signatures  
-- Handles **expiry, cancellation, and underpayment**  
-- **sBTC → USD conversion** (for reference pricing)  
-- Polished **expired/checkout states**  
-- **Retry logic** for payouts & webhooks  
+- **Stripe-like state machine** – ensures reliable charge lifecycle management
+- Hosted **checkout page** with QR code + live status
+- Auto-transfer from **temp wallet → merchant payout wallet**
+- **Webhook delivery** with HMAC signatures
+- Handles **expiry, cancellation, and underpayment**
+- **sBTC → USD conversion** (for reference pricing)
+- Polished **expired/checkout states**
+- **Retry logic** for payouts & webhooks
 
 ## 🛠️ Tech Stack
 
@@ -138,7 +138,7 @@ src
 │       │   ├── processPayoutInitiated.ts# Mark payouts as initiated    CONFIRMED->PAYOUT_INITIATED
 │       │   ├── processPayoutConfirmed.ts# Confirm payout completion    PAYOUT_INITIATED->PAYOUT_CONFIRMED->COMPLETED
 │       │   ├── recoverStuckCharges.ts   # Recover stuck charges        FOR REFUNDS AND OTHER RETRIALS
-│       │   └── retryFailedWebhooks.ts   # Retry undelivered webhooks      
+│       │   └── retryFailedWebhooks.ts   # Retry undelivered webhooks
 │       ├── deliverChargeWebhook.ts     # Deliver webhooks to merchants
 │       ├── feeCalculator.ts            # Compute tx fees + buffers
 │       ├── markChargeFailed.ts         # Mark charge as failed
@@ -149,21 +149,21 @@ src
 
 ```
 
-### ⚙️ Charge Processor  
+### ⚙️ Charge Processor
 
-sPay runs a background **charge processor** service that polls the database every ~30 seconds.  
+sPay runs a background **charge processor** service that polls the database every ~30 seconds.
 
-- ⏱ **Interval** – runs continuously on a 30s cycle (with backoff + retries).  
-- 🔄 **State machine** – moves charges through their lifecycle:  
-  - PENDING → CONFIRMED (payment detected)  
-  - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)  
-  - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)  
-  - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)  
-- 🧰 **Error handling** – retries on failures, marks charges as FAILED if unrecoverable.  
-- 🩺 **DB resilience** – if the database restarts or loses connection, the processor automatically attempts recovery.  
-- 🔧 **Stuck charge recovery** – detects and re-broadcasts stuck or timed-out payouts.  
+- ⏱ **Interval** – runs continuously on a 30s cycle (with backoff + retries).
+- 🔄 **State machine** – moves charges through their lifecycle:
+  - PENDING → CONFIRMED (payment detected)
+  - CONFIRMED → PAYOUT_INITIATED (payout tx broadcast)
+  - PAYOUT_INITIATED → PAYOUT_CONFIRMED (tx confirmed on-chain)
+  - PAYOUT_CONFIRMED → COMPLETED (webhook delivered + finalized)
+- 🧰 **Error handling** – retries on failures, marks charges as FAILED if unrecoverable.
+- 🩺 **DB resilience** – if the database restarts or loses connection, the processor automatically attempts recovery.
+- 🔧 **Stuck charge recovery** – detects and re-broadcasts stuck or timed-out payouts.
 
-👉 This ensures charges are always reconciled automatically, even if network issues or temporary errors occur.  
+👉 This ensures charges are always reconciled automatically, even if network issues or temporary errors occur.
 
 ## ⚡ Quickstart
 
@@ -277,7 +277,6 @@ Idempotency-Key: <unique-uuid>
 
 Merchants can register a `webhook_url` + `webhook_secret`. Events are signed with HMAC and include additional headers for security and idempotency.
 
-
 ### Webhook Headers
 
 - `X-SBTC-Signature`: HMAC-SHA256 signature (`sha256=...`)
@@ -327,9 +326,7 @@ app.post("/webhook", (req, res) => {
   }
 
   const payload = JSON.parse(raw.toString("utf8"));
-  console.log("Webhook received:", payload);
 
-  // Process the webhook (fulfill order, etc.)
   processed.add(eventId);
   res.status(200).send("OK");
 });

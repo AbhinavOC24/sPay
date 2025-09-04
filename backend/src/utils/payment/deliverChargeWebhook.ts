@@ -10,9 +10,7 @@ export async function deliverChargeConfirmedWebhook({
   if (!config.secret || !config.url) {
     // Ensure merchant has configured a webhook URL + secret
 
-    console.log(
-      "📧 Can't find webhook secret and url from deliverChargeWebhook"
-    );
+    console.log(" Can't find webhook secret and url from deliverChargeWebhook");
     return;
   }
   // Unique event ID and timestamp
@@ -46,7 +44,7 @@ export async function deliverChargeConfirmedWebhook({
   while (attempts < maxAttempts) {
     try {
       console.log(
-        `📧 Sending webhook attempt ${attempts + 1} for charge ${
+        ` Sending webhook attempt ${attempts + 1} for charge ${
           payload.chargeId
         }`
       );
@@ -72,7 +70,7 @@ export async function deliverChargeConfirmedWebhook({
       });
 
       console.log(
-        `📧 ✅ Webhook delivered successfully for charge ${payload.chargeId}`
+        ` Webhook delivered successfully for charge ${payload.chargeId}`
       );
       return true;
     } catch (error: any) {
@@ -97,7 +95,7 @@ export async function deliverChargeConfirmedWebhook({
 
       if (attempts < maxAttempts) {
         const backoffDelay = attempts * 2000;
-        console.log(`📧 ⏳ Retrying webhook in ${backoffDelay}ms...`);
+        console.log(` Retrying webhook in ${backoffDelay}ms...`);
         await new Promise((res) => setTimeout(res, backoffDelay));
       }
     }
@@ -115,7 +113,7 @@ export async function deliverChargeCancelledWebhook({
 }: WebhookDeliveryParams) {
   if (!config.secret || !config.url) {
     console.log(
-      "📧 Can't find webhook secret and url from deliverChargeCancelledWebhook"
+      "Can't find webhook secret and url from deliverChargeCancelledWebhook"
     );
     return;
   }
@@ -141,7 +139,7 @@ export async function deliverChargeCancelledWebhook({
   while (attempts < maxAttempts) {
     try {
       console.log(
-        `📧 Sending CANCEL webhook attempt ${attempts + 1} for charge ${
+        ` Sending CANCEL webhook attempt ${attempts + 1} for charge ${
           payload.chargeId
         }`
       );
@@ -167,7 +165,7 @@ export async function deliverChargeCancelledWebhook({
       });
 
       console.log(
-        `📧 ✅ CANCEL webhook delivered successfully for ${payload.chargeId}`
+        `CANCEL webhook delivered successfully for ${payload.chargeId}`
       );
       return true;
     } catch (error: any) {
@@ -189,7 +187,7 @@ export async function deliverChargeCancelledWebhook({
 
       if (attempts < maxAttempts) {
         const backoffDelay = attempts * 2000;
-        console.log(`📧 ⏳ Retrying CANCEL webhook in ${backoffDelay}ms...`);
+        console.log(` Retrying CANCEL webhook in ${backoffDelay}ms...`);
         await new Promise((res) => setTimeout(res, backoffDelay));
       }
     }

@@ -17,7 +17,6 @@ export async function checkTxStatus(txid: string, maxAttempts = 5) {
 
       if (response.status === 200) {
         const txData = response.data;
-        console.log(`TX ${clean} status: ${txData.tx_status}`);
 
         return {
           status: txData.tx_status,
@@ -35,9 +34,6 @@ export async function checkTxStatus(txid: string, maxAttempts = 5) {
       }
 
       if (response.status === 404) {
-        console.log(
-          `⏳ Tx ${clean} not yet indexed (attempt ${attempt}/${maxAttempts})`
-        );
         await new Promise((r) => setTimeout(r, attempt * 2000)); // 2s, 4s, 6s…
         continue;
       }

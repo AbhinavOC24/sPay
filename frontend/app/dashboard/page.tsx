@@ -108,7 +108,7 @@ export default function DashboardPage() {
     statusFilter === "all"
       ? charges
       : charges.filter((t) => t.status.toLowerCase() === statusFilter);
-  console.log(filteredTransactions);
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":

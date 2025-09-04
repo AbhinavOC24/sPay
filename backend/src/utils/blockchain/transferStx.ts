@@ -30,7 +30,6 @@ export async function transferStx(
     });
 
     const result = await broadcastTransaction({ transaction: tx, network });
-    console.log("📡 STX transfer broadcast result:", result);
 
     if ("error" in result) {
       throw new Error(
@@ -89,7 +88,7 @@ export async function transferAllStx(senderKey: string, recipient: string) {
         })`
       );
     }
-    console.log("♻️ Refund TX:", result.txid);
+
     return { txid: result.txid };
   } catch (err: any) {
     console.error("❌ transferAllStx failed:", err.message);

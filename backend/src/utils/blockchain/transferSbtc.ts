@@ -76,9 +76,6 @@ export async function transferSbtc(
 
     const result = await broadcastTransaction({ transaction: tx, network });
     if ("txid" in result) {
-      console.log(
-        `📤 SBTC payout broadcasted with fallback fee, txid: ${result.txid}`
-      );
       return { txid: result.txid };
     }
     throw new Error(
